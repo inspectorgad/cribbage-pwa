@@ -1,0 +1,3184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Cribbage - Classic Card Game</title>
+  
+  <!-- PWA Meta Tags -->
+  <meta name="description" content="A classic cribbage card game with AI opponent, tutorial features, and authentic board visualization">
+  <meta name="theme-color" content="#0051ba">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Cribbage">
+  
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="manifest.json">
+  
+  <!-- Icons -->
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-96.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/icon-72.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
+    
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: 'Crimson Text', Georgia, serif;
+      overflow-x: hidden;
+      background: #1a472a;
+      min-height: 100vh;
+    }
+    
+    #root {
+      min-height: 100vh;
+    }
+    
+    /* Felt texture overlay */
+    .felt-texture {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      opacity: 0.4;
+      background-image: 
+        url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%' height='100%' filter='url(%23noise)'/%3E%3C/svg%3E");
+    }
+    
+    @keyframes dealCard {
+      0% { transform: translateY(-100px) rotate(-10deg); opacity: 0; }
+      100% { transform: translateY(0) rotate(0deg); opacity: 1; }
+    }
+    
+    @keyframes cardSelect {
+      0% { transform: translateY(0); }
+      50% { transform: translateY(-15px); }
+      100% { transform: translateY(-10px); }
+    }
+    
+    @keyframes pegMove {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.3) translateY(-5px); }
+      100% { transform: scale(1); }
+    }
+    
+    @keyframes scorePopup {
+      0% { transform: scale(0); opacity: 0; }
+      50% { transform: scale(1.2); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    
+    @keyframes shine {
+      0% { background-position: -200% center; }
+      100% { background-position: 200% center; }
+    }
+    
+    @keyframes confetti-fall {
+      0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+    }
+    
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 5px rgba(255, 200, 46, 0.5); }
+      50% { box-shadow: 0 0 20px rgba(255, 200, 46, 0.9), 0 0 30px rgba(255, 200, 46, 0.5); }
+    }
+    
+    @keyframes slide-up {
+      0% { transform: translateY(20px); opacity: 0; }
+      100% { transform: translateY(0); opacity: 1; }
+    }
+    
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    
+    @keyframes card-flip {
+      0% { transform: rotateY(0deg); }
+      50% { transform: rotateY(90deg); }
+      100% { transform: rotateY(0deg); }
+    }
+    
+    .confetti {
+      position: fixed;
+      width: 10px;
+      height: 10px;
+      top: -10px;
+      animation: confetti-fall linear forwards;
+      pointer-events: none;
+      z-index: 9999;
+    }
+    
+    /* Mobile Responsive Styles */
+    @media (max-width: 600px) {
+      .mobile-card {
+        width: 55px !important;
+        height: 80px !important;
+      }
+      .mobile-card .card-rank {
+        font-size: 13px !important;
+      }
+      .mobile-card .card-suit-small {
+        font-size: 11px !important;
+      }
+      .mobile-card .card-suit-large {
+        font-size: 28px !important;
+      }
+      .mobile-board {
+        transform: scale(0.75);
+        transform-origin: top center;
+        margin-bottom: -190px;
+      }
+      .mobile-hide {
+        display: none !important;
+      }
+      .mobile-text-sm {
+        font-size: 12px !important;
+      }
+      .mobile-text-xs {
+        font-size: 10px !important;
+      }
+      .mobile-btn {
+        padding: 10px 16px !important;
+        font-size: 14px !important;
+      }
+      .mobile-gap-sm {
+        gap: 4px !important;
+      }
+    }
+    
+    @media (max-width: 400px) {
+      .mobile-card {
+        width: 48px !important;
+        height: 70px !important;
+      }
+      .mobile-card .card-suit-large {
+        font-size: 24px !important;
+      }
+      .mobile-board {
+        transform: scale(0.65);
+        margin-bottom: -270px;
+      }
+    }
+  </style>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+  <div class="felt-texture"></div>
+  <div id="root"></div>
+  
+  <script type="text/babel">
+    const { useState, useEffect, useCallback, useMemo, useRef } = React;
+
+    // ============================================================================
+    // SOUND EFFECTS SYSTEM (Web Audio API)
+    // ============================================================================
+    
+    const SoundManager = {
+      audioContext: null,
+      enabled: true,
+      
+      init() {
+        if (!this.audioContext) {
+          this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        // Resume context if suspended (browser autoplay policy)
+        if (this.audioContext.state === 'suspended') {
+          this.audioContext.resume();
+        }
+      },
+      
+      playTone(frequency, duration, type = 'sine', volume = 0.3) {
+        if (!this.enabled || !this.audioContext) return;
+        
+        try {
+          const oscillator = this.audioContext.createOscillator();
+          const gainNode = this.audioContext.createGain();
+          
+          oscillator.connect(gainNode);
+          gainNode.connect(this.audioContext.destination);
+          
+          oscillator.frequency.value = frequency;
+          oscillator.type = type;
+          
+          gainNode.gain.setValueAtTime(volume, this.audioContext.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + duration);
+          
+          oscillator.start();
+          oscillator.stop(this.audioContext.currentTime + duration);
+        } catch (e) {
+          console.log('Sound error:', e);
+        }
+      },
+      
+      // Card deal sound - quick click
+      cardDeal() {
+        this.playTone(800, 0.05, 'square', 0.15);
+        setTimeout(() => this.playTone(600, 0.03, 'square', 0.1), 30);
+      },
+      
+      // Card flip sound
+      cardFlip() {
+        this.playTone(400, 0.08, 'triangle', 0.2);
+      },
+      
+      // Score points - ascending tones
+      scorePoints(points) {
+        if (points <= 0) return;
+        const baseFreq = 440;
+        for (let i = 0; i < Math.min(points, 6); i++) {
+          setTimeout(() => {
+            this.playTone(baseFreq + (i * 80), 0.15, 'sine', 0.25);
+          }, i * 80);
+        }
+      },
+      
+      // Fifteen or 31 - special chord
+      fifteen() {
+        this.playTone(523, 0.2, 'sine', 0.3); // C5
+        setTimeout(() => this.playTone(659, 0.2, 'sine', 0.3), 50); // E5
+        setTimeout(() => this.playTone(784, 0.3, 'sine', 0.3), 100); // G5
+      },
+      
+      // Go sound - descending
+      goSound() {
+        this.playTone(400, 0.1, 'triangle', 0.2);
+        setTimeout(() => this.playTone(300, 0.15, 'triangle', 0.15), 100);
+      },
+      
+      // Win fanfare!
+      winFanfare() {
+        const notes = [523, 659, 784, 1047]; // C E G C
+        notes.forEach((freq, i) => {
+          setTimeout(() => this.playTone(freq, 0.3, 'sine', 0.35), i * 150);
+        });
+        setTimeout(() => {
+          this.playTone(784, 0.5, 'sine', 0.3);
+          this.playTone(1047, 0.5, 'sine', 0.3);
+        }, 700);
+      },
+      
+      // Lose sound - sad trombone
+      loseSound() {
+        const notes = [392, 370, 349, 330]; // G Gb F E (descending)
+        notes.forEach((freq, i) => {
+          setTimeout(() => this.playTone(freq, 0.25, 'sawtooth', 0.2), i * 200);
+        });
+      },
+      
+      // Button click
+      click() {
+        this.playTone(600, 0.05, 'sine', 0.15);
+      },
+      
+      // Error/invalid action
+      error() {
+        this.playTone(200, 0.15, 'square', 0.2);
+        setTimeout(() => this.playTone(150, 0.2, 'square', 0.15), 100);
+      },
+      
+      // Peg movement
+      pegMove() {
+        this.playTone(880, 0.08, 'sine', 0.2);
+        setTimeout(() => this.playTone(1100, 0.06, 'sine', 0.15), 50);
+      },
+      
+      // New hand/shuffle
+      shuffle() {
+        for (let i = 0; i < 5; i++) {
+          setTimeout(() => this.playTone(300 + Math.random() * 200, 0.04, 'square', 0.1), i * 40);
+        }
+      }
+    };
+    
+    // Confetti creator
+    function createConfetti() {
+      const colors = ['#ffc82e', '#0051ba', '#e8000d', '#fff', '#8fbc8f'];
+      const container = document.body;
+      
+      for (let i = 0; i < 100; i++) {
+        setTimeout(() => {
+          const confetti = document.createElement('div');
+          confetti.className = 'confetti';
+          confetti.style.left = Math.random() * 100 + 'vw';
+          confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+          confetti.style.animationDuration = (Math.random() * 2 + 2) + 's';
+          confetti.style.animationDelay = Math.random() * 0.5 + 's';
+          confetti.style.width = (Math.random() * 10 + 5) + 'px';
+          confetti.style.height = (Math.random() * 10 + 5) + 'px';
+          confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
+          container.appendChild(confetti);
+          
+          setTimeout(() => confetti.remove(), 4000);
+        }, i * 30);
+      }
+    }
+
+    // ============================================================================
+    // CRIBBAGE GAME ENGINE (embedded)
+    // ============================================================================
+
+    const SUITS = ['hearts', 'diamonds', 'clubs', 'spades'];
+    const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+    const WINNING_SCORE = 121;
+
+    const CARD_VALUES = {
+      'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7,
+      '8': 8, '9': 9, '10': 10, 'J': 10, 'Q': 10, 'K': 10
+    };
+
+    const RANK_ORDER = {
+      'A': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7,
+      '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13
+    };
+
+    const GAME_PHASES = {
+      SETUP: 'setup',
+      CUT_FOR_DEAL: 'cut_for_deal',
+      DEALING: 'dealing',
+      DISCARDING: 'discarding',
+      CUT_STARTER: 'cut_starter',
+      PEGGING: 'pegging',
+      COUNTING_PONE: 'counting_pone',
+      COUNTING_DEALER: 'counting_dealer',
+      COUNTING_CRIB: 'counting_crib',
+      GAME_OVER: 'game_over'
+    };
+
+    function getSuitSymbol(suit) {
+      const symbols = { hearts: '♥', diamonds: '♦', clubs: '♣', spades: '♠' };
+      return symbols[suit] || suit;
+    }
+
+    function getSuitColor(suit) {
+      return (suit === 'hearts' || suit === 'diamonds') ? '#c41e3a' : '#1a1a2e';
+    }
+
+    function createCard(rank, suit) {
+      return {
+        rank, suit,
+        value: CARD_VALUES[rank],
+        order: RANK_ORDER[rank],
+        id: `${rank}_${suit}`,
+        display: `${rank}${getSuitSymbol(suit)}`
+      };
+    }
+
+    function createDeck() {
+      const deck = [];
+      for (const suit of SUITS) {
+        for (const rank of RANKS) {
+          deck.push(createCard(rank, suit));
+        }
+      }
+      return deck;
+    }
+
+    function shuffleDeck(deck) {
+      const shuffled = [...deck];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      return shuffled;
+    }
+
+    function dealCards(deck, numCards) {
+      return {
+        dealt: deck.slice(0, numCards),
+        remaining: deck.slice(numCards)
+      };
+    }
+
+    // Scoring functions
+    function scoreHand(hand, starter, isCrib = false) {
+      const allFive = [...hand, starter];
+      const fifteens = scoreFifteens(allFive);
+      const pairs = scorePairs(allFive);
+      const runs = scoreRuns(allFive);
+      const flush = scoreFlush(hand, starter, isCrib);
+      const nobs = scoreNobs(hand, starter);
+      const total = fifteens.points + pairs.points + runs.points + flush.points + nobs.points;
+      
+      return { fifteens, pairs, runs, flush, nobs, total, hand: hand.map(c => c.display), starter: starter.display };
+    }
+
+    function scoreFifteens(cards) {
+      const combinations = [];
+      const n = cards.length;
+      
+      for (let mask = 1; mask < (1 << n); mask++) {
+        const subset = [];
+        let sum = 0;
+        for (let i = 0; i < n; i++) {
+          if (mask & (1 << i)) {
+            subset.push(cards[i]);
+            sum += cards[i].value;
+          }
+        }
+        if (sum === 15) {
+          combinations.push({
+            cards: subset.map(c => c.display),
+            description: subset.map(c => c.display).join(' + ') + ' = 15'
+          });
+        }
+      }
+      
+      return {
+        points: combinations.length * 2,
+        count: combinations.length,
+        combinations,
+        description: combinations.length > 0 ? `Fifteens: ${combinations.length} × 2 = ${combinations.length * 2}` : null
+      };
+    }
+
+    function scorePairs(cards) {
+      const combinations = [];
+      const rankCounts = {};
+      
+      for (const card of cards) {
+        rankCounts[card.rank] = (rankCounts[card.rank] || []);
+        rankCounts[card.rank].push(card);
+      }
+      
+      let totalPoints = 0;
+      
+      for (const rank in rankCounts) {
+        const count = rankCounts[rank].length;
+        if (count >= 2) {
+          const numPairs = (count * (count - 1)) / 2;
+          const points = numPairs * 2;
+          totalPoints += points;
+          
+          const cardsInvolved = rankCounts[rank].map(c => c.display);
+          let description = count === 2 ? `Pair of ${rank}s` : count === 3 ? `Three ${rank}s (3 pairs)` : `Four ${rank}s (6 pairs)`;
+          
+          combinations.push({ cards: cardsInvolved, count, numPairs, points, description });
+        }
+      }
+      
+      return { points: totalPoints, combinations, description: totalPoints > 0 ? `Pairs: ${totalPoints} points` : null };
+    }
+
+    function scoreRuns(cards) {
+      const rankCounts = {};
+      for (const card of cards) {
+        rankCounts[card.order] = (rankCounts[card.order] || 0) + 1;
+      }
+      
+      const uniqueRanks = Object.keys(rankCounts).map(Number).sort((a, b) => a - b);
+      let runs = [];
+      let bestRunLength = 0;
+      
+      for (let startIdx = 0; startIdx < uniqueRanks.length; startIdx++) {
+        let runLength = 1;
+        let runRanks = [uniqueRanks[startIdx]];
+        
+        for (let j = startIdx + 1; j < uniqueRanks.length; j++) {
+          if (uniqueRanks[j] === uniqueRanks[j - 1] + 1) {
+            runLength++;
+            runRanks.push(uniqueRanks[j]);
+          } else break;
+        }
+        
+        if (runLength >= 3 && runLength >= bestRunLength) {
+          if (runLength > bestRunLength) {
+            runs = [];
+            bestRunLength = runLength;
+          }
+          runs.push(runRanks);
+        }
+      }
+      
+      if (runs.length === 0) return { points: 0, combinations: [], description: null };
+      
+      const combinations = [];
+      let totalPoints = 0;
+      
+      for (const runRanks of runs) {
+        let multiplier = 1;
+        for (const rank of runRanks) multiplier *= rankCounts[rank];
+        
+        const points = runRanks.length * multiplier;
+        totalPoints += points;
+        
+        const rankNames = runRanks.map(r => {
+          const card = cards.find(c => c.order === r);
+          return card.rank;
+        });
+        
+        combinations.push({
+          ranks: rankNames,
+          length: runRanks.length,
+          multiplier,
+          points,
+          description: multiplier === 1 ? `Run of ${runRanks.length}: ${rankNames.join('-')}` : `${multiplier} runs of ${runRanks.length}: ${rankNames.join('-')}`
+        });
+      }
+      
+      return { points: totalPoints, combinations, description: totalPoints > 0 ? combinations.map(c => c.description).join(', ') : null };
+    }
+
+    function scoreFlush(hand, starter, isCrib) {
+      const handSuits = hand.map(c => c.suit);
+      const allSameSuit = handSuits.every(s => s === handSuits[0]);
+      
+      if (!allSameSuit) return { points: 0, description: null };
+      
+      const starterMatches = starter.suit === handSuits[0];
+      
+      if (isCrib) {
+        if (starterMatches) return { points: 5, description: `Flush: 5 ${handSuits[0]} (including starter)` };
+        return { points: 0, description: null };
+      }
+      
+      if (starterMatches) return { points: 5, description: `Flush: 5 ${handSuits[0]} (including starter)` };
+      return { points: 4, description: `Flush: 4 ${handSuits[0]} in hand` };
+    }
+
+    function scoreNobs(hand, starter) {
+      for (const card of hand) {
+        if (card.rank === 'J' && card.suit === starter.suit) {
+          return { points: 1, description: `Nobs: Jack of ${starter.suit} matches starter` };
+        }
+      }
+      return { points: 0, description: null };
+    }
+
+    function scoreHeels(starter) {
+      if (starter.rank === 'J') return { points: 2, description: `His Heels: Cut card is a Jack` };
+      return { points: 0, description: null };
+    }
+
+    // Pegging functions
+    function createPeggingState() {
+      return { playedCards: [], runningTotal: 0, lastPlayer: null, goCount: 0, roundComplete: false };
+    }
+
+    function getPlayableCards(hand, runningTotal) {
+      return hand.filter(card => runningTotal + card.value <= 31);
+    }
+
+    function scorePeggingPlay(card, peggingState) {
+      const newTotal = peggingState.runningTotal + card.value;
+      const allPlayed = [...peggingState.playedCards, card];
+      
+      let points = 0;
+      const breakdown = [];
+      
+      if (newTotal === 15) {
+        points += 2;
+        breakdown.push({ points: 2, description: 'Fifteen for 2' });
+      }
+      
+      if (newTotal === 31) {
+        points += 2;
+        breakdown.push({ points: 2, description: 'Thirty-one for 2' });
+      }
+      
+      const pairPoints = scorePeggingPairs(allPlayed);
+      if (pairPoints.points > 0) {
+        points += pairPoints.points;
+        breakdown.push(pairPoints);
+      }
+      
+      const runPoints = scorePeggingRun(allPlayed);
+      if (runPoints.points > 0) {
+        points += runPoints.points;
+        breakdown.push(runPoints);
+      }
+      
+      return { points, breakdown, newTotal, description: breakdown.map(b => b.description).join(', ') || null };
+    }
+
+    function scorePeggingPairs(playedCards) {
+      if (playedCards.length < 2) return { points: 0 };
+      
+      const lastCard = playedCards[playedCards.length - 1];
+      let matchCount = 1;
+      
+      for (let i = playedCards.length - 2; i >= 0; i--) {
+        if (playedCards[i].rank === lastCard.rank) matchCount++;
+        else break;
+      }
+      
+      if (matchCount === 2) return { points: 2, description: 'Pair for 2' };
+      if (matchCount === 3) return { points: 6, description: 'Three of a kind for 6' };
+      if (matchCount === 4) return { points: 12, description: 'Four of a kind for 12' };
+      return { points: 0 };
+    }
+
+    function scorePeggingRun(playedCards) {
+      if (playedCards.length < 3) return { points: 0 };
+      
+      for (let length = playedCards.length; length >= 3; length--) {
+        const lastN = playedCards.slice(-length);
+        const orders = lastN.map(c => c.order).sort((a, b) => a - b);
+        
+        let isRun = true;
+        for (let i = 1; i < orders.length; i++) {
+          if (orders[i] !== orders[i - 1] + 1) {
+            isRun = false;
+            break;
+          }
+        }
+        
+        if (isRun) return { points: length, description: `Run of ${length} for ${length}` };
+      }
+      
+      return { points: 0 };
+    }
+
+    // ============================================================================
+    // AI STRATEGY SYSTEM
+    // ============================================================================
+    
+    // Difficulty levels affect decision quality
+    const AI_DIFFICULTY = {
+      EASY: 'easy',
+      MEDIUM: 'medium', 
+      HARD: 'hard'
+    };
+    
+    // Evaluate potential hand score (used for discarding decisions)
+    function evaluateHandPotential(hand, isCrib = false) {
+      // Simulate average score with random starters
+      let totalScore = 0;
+      const sampleSize = 10;
+      
+      // Create a mini-deck of possible starters (excluding hand cards)
+      const possibleStarters = [];
+      for (const suit of SUITS) {
+        for (const rank of RANKS) {
+          const inHand = hand.some(c => c.rank === rank && c.suit === suit);
+          if (!inHand) {
+            possibleStarters.push({ rank, suit, value: CARD_VALUES[rank], order: RANK_ORDER[rank] });
+          }
+        }
+      }
+      
+      // Sample random starters and average the scores
+      for (let i = 0; i < sampleSize; i++) {
+        const starter = possibleStarters[Math.floor(Math.random() * possibleStarters.length)];
+        const result = scoreHand(hand, starter, isCrib);
+        totalScore += result.total;
+      }
+      
+      return totalScore / sampleSize;
+    }
+    
+    // Get all possible 2-card discard combinations from 6-card hand
+    function getDiscardCombinations(hand) {
+      const combinations = [];
+      for (let i = 0; i < hand.length; i++) {
+        for (let j = i + 1; j < hand.length; j++) {
+          const discards = [hand[i], hand[j]];
+          const kept = hand.filter((_, idx) => idx !== i && idx !== j);
+          combinations.push({ discards, kept });
+        }
+      }
+      return combinations;
+    }
+    
+    // AI Discard Strategy
+    function aiSelectDiscards(hand, isDealer, difficulty) {
+      const combinations = getDiscardCombinations(hand);
+      
+      // Easy: Random discard
+      if (difficulty === AI_DIFFICULTY.EASY) {
+        const randomIdx = Math.floor(Math.random() * combinations.length);
+        return combinations[randomIdx].discards;
+      }
+      
+      // Evaluate each combination
+      const evaluated = combinations.map(combo => {
+        const handScore = evaluateHandPotential(combo.kept, false);
+        const cribScore = evaluateHandPotential(combo.discards, true);
+        
+        // If dealer, crib helps us. If not dealer, crib hurts us.
+        const cribFactor = isDealer ? 0.5 : -0.5;
+        const totalValue = handScore + (cribScore * cribFactor);
+        
+        return { ...combo, handScore, cribScore, totalValue };
+      });
+      
+      // Sort by total value
+      evaluated.sort((a, b) => b.totalValue - a.totalValue);
+      
+      // Medium: Pick from top 3 with some randomness
+      if (difficulty === AI_DIFFICULTY.MEDIUM) {
+        const topN = Math.min(3, evaluated.length);
+        const randomIdx = Math.floor(Math.random() * topN);
+        return evaluated[randomIdx].discards;
+      }
+      
+      // Hard: Pick the best option
+      return evaluated[0].discards;
+    }
+    
+    // Evaluate a pegging play
+    function evaluatePeggingPlay(card, peggingState, myHand, difficulty) {
+      const testCards = [...peggingState.playedCards, card];
+      const newTotal = peggingState.runningTotal + card.value;
+      
+      let score = 0;
+      
+      // Points we'd score
+      if (newTotal === 15) score += 2;
+      if (newTotal === 31) score += 2;
+      
+      // Check for pairs
+      const pairScore = scorePeggingPairs(testCards);
+      score += pairScore.points;
+      
+      // Check for runs
+      const runScore = scorePeggingRun(testCards);
+      score += runScore.points;
+      
+      // Strategic considerations (for medium/hard)
+      if (difficulty !== AI_DIFFICULTY.EASY) {
+        // Penalty for leaving easy 15 or 31 for opponent
+        if (newTotal < 15 && 15 - newTotal <= 10) {
+          score -= 1; // Opponent might have a card to make 15
+        }
+        if (newTotal > 15 && newTotal < 21) {
+          score -= 0.5; // Getting into dangerous territory
+        }
+        if (newTotal === 21) {
+          score -= 1.5; // Easy 31 for opponent with a 10-card
+        }
+        
+        // Bonus for keeping low cards for end-game flexibility
+        if (difficulty === AI_DIFFICULTY.HARD) {
+          const remainingLowCards = myHand.filter(c => c.id !== card.id && c.value <= 4).length;
+          score += remainingLowCards * 0.2;
+        }
+        
+        // Slight preference for playing higher cards first (save low for go situations)
+        if (difficulty === AI_DIFFICULTY.HARD && card.value >= 10) {
+          score += 0.3;
+        }
+      }
+      
+      return score;
+    }
+    
+    // AI Pegging Strategy - Select best card to play
+    function aiSelectPeggingCard(playableCards, allCards, peggingState, difficulty) {
+      if (playableCards.length === 0) return null;
+      if (playableCards.length === 1) return playableCards[0];
+      
+      // Easy: Random playable card
+      if (difficulty === AI_DIFFICULTY.EASY) {
+        return playableCards[Math.floor(Math.random() * playableCards.length)];
+      }
+      
+      // Evaluate each playable card
+      const evaluated = playableCards.map(card => ({
+        card,
+        score: evaluatePeggingPlay(card, peggingState, allCards, difficulty)
+      }));
+      
+      // Sort by score (highest first)
+      evaluated.sort((a, b) => b.score - a.score);
+      
+      // Medium: Pick from top 2 with some randomness
+      if (difficulty === AI_DIFFICULTY.MEDIUM) {
+        const topN = Math.min(2, evaluated.length);
+        const randomIdx = Math.floor(Math.random() * topN);
+        return evaluated[randomIdx].card;
+      }
+      
+      // Hard: Always pick the best
+      return evaluated[0].card;
+    }
+    
+    // Check if AI should say "Go" strategically (always say go if no playable cards)
+    function aiShouldSayGo(playableCards) {
+      return playableCards.length === 0;
+    }
+
+    // ============================================================================
+    // TUTOR HINT FUNCTIONS
+    // ============================================================================
+    
+    // Get hint for discarding - returns best discard recommendation
+    function getDiscardHint(hand, isDealer) {
+      const combinations = getDiscardCombinations(hand);
+      
+      const evaluated = combinations.map(combo => {
+        const handScore = evaluateHandPotential(combo.kept, false);
+        const cribScore = evaluateHandPotential(combo.discards, true);
+        const cribFactor = isDealer ? 0.5 : -0.5;
+        const totalValue = handScore + (cribScore * cribFactor);
+        
+        return { ...combo, handScore, cribScore, totalValue };
+      });
+      
+      evaluated.sort((a, b) => b.totalValue - a.totalValue);
+      const best = evaluated[0];
+      
+      const discardNames = best.discards.map(c => c.display).join(' and ');
+      const keepNames = best.kept.map(c => c.display).join(', ');
+      
+      let reason = `Keep ${keepNames} (expected ~${best.handScore.toFixed(1)} points). `;
+      if (isDealer) {
+        reason += `Discard ${discardNames} to your crib (~${best.cribScore.toFixed(1)} pts).`;
+      } else {
+        reason += `Discard ${discardNames} to opponent's crib.`;
+      }
+      
+      return {
+        discards: best.discards,
+        kept: best.kept,
+        reason,
+        expectedHandScore: best.handScore,
+        expectedCribScore: best.cribScore
+      };
+    }
+    
+    // Get hint for pegging - returns best card to play
+    function getPeggingHint(playableCards, allCards, peggingState) {
+      if (playableCards.length === 0) {
+        return { card: null, reason: "No playable cards - say 'Go'" };
+      }
+      if (playableCards.length === 1) {
+        return { card: playableCards[0], reason: `Only one option: play ${playableCards[0].display}` };
+      }
+      
+      const evaluated = playableCards.map(card => ({
+        card,
+        score: evaluatePeggingPlay(card, peggingState, allCards, 'hard')
+      }));
+      
+      evaluated.sort((a, b) => b.score - a.score);
+      const best = evaluated[0];
+      
+      const newTotal = peggingState.runningTotal + best.card.value;
+      let reason = `Play ${best.card.display} (count: ${newTotal})`;
+      
+      if (newTotal === 15) reason += ' - scores 2 for fifteen!';
+      else if (newTotal === 31) reason += ' - scores 2 for thirty-one!';
+      else if (newTotal < 15) reason += ' - keeps count low';
+      else if (newTotal > 21 && newTotal < 31) reason += ' - limits opponent options';
+      
+      return { card: best.card, reason };
+    }
+
+    // ============================================================================
+    // UI COMPONENTS
+    // ============================================================================
+
+    // 1912 Jayhawk Card Back Component
+    const JAYHAWK_IMAGE = "data:image/webp;base64,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";
+    
+    const CardBack = ({ width = 70, height = 100 }) => (
+      <div className="mobile-card" style={{
+        width, height,
+        background: '#f5f5f0',
+        borderRadius: 8,
+        border: '3px solid #0051ba',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        boxShadow: '2px 4px 8px rgba(0,0,0,0.4)',
+        position: 'relative',
+        overflow: 'hidden'
+      }}>
+        <img 
+          src={JAYHAWK_IMAGE} 
+          alt="Jayhawk"
+          style={{
+            width: '90%',
+            height: '90%',
+            objectFit: 'contain'
+          }}
+        />
+      </div>
+    );
+
+    // Playing Card Component
+    const PlayingCard = ({ card, faceDown = false, selected = false, selectable = false, dimmed = false, onClick, style = {}, animationDelay = 0 }) => {
+      const width = 70;
+      const height = 100;
+      
+      if (faceDown) {
+        return (
+          <div 
+            className="mobile-card"
+            style={{ 
+              cursor: selectable ? 'pointer' : 'default',
+              transform: selected ? 'translateY(-10px)' : 'none',
+              transition: 'transform 0.2s ease',
+              animation: `dealCard 0.4s ease-out ${animationDelay}s both`,
+              ...style 
+            }} 
+            onClick={onClick}
+          >
+            <CardBack width={width} height={height} />
+          </div>
+        );
+      }
+      
+      const suitColor = getSuitColor(card.suit);
+      const suitSymbol = getSuitSymbol(card.suit);
+      
+      return (
+        <div 
+          className="mobile-card"
+          onClick={onClick}
+          style={{
+            width,
+            height,
+            background: 'linear-gradient(145deg, #ffffff 0%, #f5f5f0 50%, #ebe9e4 100%)',
+            borderRadius: 8,
+            border: selected ? '3px solid #ffc82e' : dimmed ? '1px solid #888' : '1px solid #ccc',
+            boxShadow: selected 
+              ? '0 8px 20px rgba(0,0,0,0.4), 0 0 0 2px #0051ba' 
+              : '2px 4px 8px rgba(0,0,0,0.3)',
+            position: 'relative',
+            cursor: selectable && !dimmed ? 'pointer' : 'default',
+            transform: selected ? 'translateY(-10px)' : 'none',
+            transition: 'all 0.2s ease',
+            animation: `dealCard 0.4s ease-out ${animationDelay}s both`,
+            fontFamily: 'Crimson Text, Georgia, serif',
+            opacity: dimmed ? 0.4 : 1,
+            filter: dimmed ? 'grayscale(60%)' : 'none',
+            ...style
+          }}
+          title={dimmed ? 'This card would exceed 31' : ''}
+        >
+          {/* Top left rank and suit */}
+          <div style={{
+            position: 'absolute',
+            top: 4,
+            left: 6,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            lineHeight: 1
+          }}>
+            <span className="card-rank" style={{ fontSize: 16, fontWeight: 600, color: suitColor }}>{card.rank}</span>
+            <span className="card-suit-small" style={{ fontSize: 14, color: suitColor }}>{suitSymbol}</span>
+          </div>
+          
+          {/* Center suit (large) */}
+          <div className="card-suit-large" style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            fontSize: 36,
+            color: suitColor
+          }}>
+            {suitSymbol}
+          </div>
+          
+          {/* Bottom right rank and suit (inverted) */}
+          <div style={{
+            position: 'absolute',
+            bottom: 4,
+            right: 6,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            transform: 'rotate(180deg)',
+            lineHeight: 1
+          }}>
+            <span className="card-rank" style={{ fontSize: 16, fontWeight: 600, color: suitColor }}>{card.rank}</span>
+            <span className="card-suit-small" style={{ fontSize: 14, color: suitColor }}>{suitSymbol}</span>
+          </div>
+        </div>
+      );
+    };
+
+    // Cribbage Board - 2-Player with 5-hole groups, divider lines, and 2 pegs per player
+    const CribbageBoard = ({ player1Score, player2Score, player1PrevScore, player2PrevScore, player1Name, player2Name }) => {
+      const boardWidth = 320;
+      const boardHeight = 770;
+      const holeRadius = 4;
+      const holeSpacing = 13; // Vertical spacing between holes
+      const groupGap = 8; // Extra gap after each 5-hole group
+      
+      // Column X positions (2 holes per row)
+      const leftCol = { x1: 54, x2: 70 };
+      const centerCol = { x1: 152, x2: 168 };
+      const rightCol = { x1: 250, x2: 266 };
+      
+      // Y positions
+      const bottomY = 635; // First hole of bottom groups
+      const startY = 682; // Start position
+      const finishY = 33; // Finish position
+      
+      // Calculate Y position for a hole number within a column
+      const getYForHole = (holeInColumn, goingUp) => {
+        // holeInColumn is 0-39 (40 holes per column)
+        const group = Math.floor(holeInColumn / 5);
+        const posInGroup = holeInColumn % 5;
+        const yOffset = (group * 5 + posInGroup) * holeSpacing + group * groupGap;
+        
+        if (goingUp) {
+          return bottomY - yOffset;
+        } else {
+          return 86 + yOffset; // Top starts at y=86 for right column
+        }
+      };
+      
+      // Get peg position based on score
+      const getPegPosition = (score, isPlayer2, isBackPeg = false) => {
+        const xOffset = isPlayer2 ? 1 : 0; // 0 = left hole, 1 = right hole
+        
+        if (score <= 0) {
+          // Back peg at start goes to second row
+          const yPos = isBackPeg ? startY + 15 : startY;
+          return { x: isPlayer2 ? centerCol.x2 : centerCol.x1, y: yPos };
+        }
+        
+        if (score >= 121) {
+          return { x: isPlayer2 ? centerCol.x2 : centerCol.x1, y: finishY };
+        }
+        
+        // LEFT COLUMN: 1-40 going UP
+        if (score <= 40) {
+          const holeIndex = score - 1;
+          const y = getYForHole(holeIndex, true);
+          return { x: isPlayer2 ? leftCol.x2 : leftCol.x1, y };
+        }
+        
+        // RIGHT COLUMN: 41-80 going DOWN
+        if (score <= 80) {
+          const holeIndex = score - 41;
+          const y = getYForHole(holeIndex, false);
+          return { x: isPlayer2 ? rightCol.x2 : rightCol.x1, y };
+        }
+        
+        // CENTER COLUMN: 81-120 going UP
+        if (score <= 120) {
+          const holeIndex = score - 81;
+          const y = getYForHole(holeIndex, true);
+          return { x: isPlayer2 ? centerCol.x2 : centerCol.x1, y };
+        }
+        
+        return { x: isPlayer2 ? centerCol.x2 : centerCol.x1, y: finishY };
+      };
+      
+      // Current score positions (front pegs)
+      const p1Pos = getPegPosition(player1Score, false, false);
+      const p2Pos = getPegPosition(player2Score, true, false);
+      
+      // Previous score positions (back pegs)
+      const p1PrevPos = getPegPosition(player1PrevScore || 0, false, true);
+      const p2PrevPos = getPegPosition(player2PrevScore || 0, true, true);
+      
+      // Render a column of holes with groups and dividers
+      const renderColumn = (col, startHole, goingUp, markerSide) => {
+        const elements = [];
+        
+        for (let group = 0; group < 8; group++) {
+          // 5 holes per group
+          for (let i = 0; i < 5; i++) {
+            const holeIndex = group * 5 + i;
+            const y = getYForHole(holeIndex, goingUp);
+            
+            elements.push(
+              <circle key={`h1-${startHole}-${holeIndex}`} cx={col.x1} cy={y} r={holeRadius} fill="#1a1208"/>,
+              <circle key={`h2-${startHole}-${holeIndex}`} cx={col.x2} cy={y} r={holeRadius} fill="#1a1208"/>
+            );
+          }
+          
+          // Divider line after each group
+          const lastHoleY = getYForHole(group * 5 + 4, goingUp);
+          const lineY = goingUp ? lastHoleY - 8 : lastHoleY + 8;
+          const lineX1 = col.x1 - 12;
+          const lineX2 = col.x2 + 12;
+          
+          elements.push(
+            <line key={`line-${startHole}-${group}`} x1={lineX1} y1={lineY} x2={lineX2} y2={lineY} 
+                  stroke="rgba(255,255,255,0.4)" strokeWidth={1}/>
+          );
+          
+          // Number marker
+          const markerNum = startHole + (group + 1) * 5 - 1;
+          const markerX = markerSide === 'left' ? col.x1 - 24 : col.x2 + 24;
+          const textAnchor = markerSide === 'left' ? 'end' : 'start';
+          
+          elements.push(
+            <text key={`num-${startHole}-${group}`} x={markerX} y={lineY + 4} 
+                  textAnchor={textAnchor} fontSize="10" fill="#d4a574" fontFamily="Georgia">
+              {markerNum}
+            </text>
+          );
+        }
+        
+        return elements;
+      };
+      
+      // Render a peg with optional "back peg" styling (slightly smaller/darker)
+      const renderPeg = (pos, gradientId, strokeColor, isBackPeg = false) => {
+        const radius = isBackPeg ? 6 : 8;
+        const opacity = isBackPeg ? 0.7 : 1;
+        
+        return (
+          <g style={{ opacity }}>
+            <circle cx={pos.x} cy={pos.y} r={radius} fill={`url(#${gradientId})`} stroke={strokeColor} strokeWidth={2}
+                    style={{ filter: 'drop-shadow(2px 2px 3px rgba(0,0,0,0.5))' }}/>
+            <ellipse cx={pos.x - 2} cy={pos.y - 3} rx={radius * 0.35} ry={radius * 0.25} fill="rgba(255,255,255,0.5)"/>
+          </g>
+        );
+      };
+      
+      return (
+        <div style={{
+          width: boardWidth,
+          height: boardHeight,
+          position: 'relative'
+        }}>
+          <svg width={boardWidth} height={boardHeight}>
+            <defs>
+              <linearGradient id="copper" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#d4a574"/>
+                <stop offset="40%" stopColor="#c49464"/>
+                <stop offset="60%" stopColor="#ddb68a"/>
+                <stop offset="100%" stopColor="#c49464"/>
+              </linearGradient>
+              <radialGradient id="redPeg" cx="30%" cy="30%">
+                <stop offset="0%" stopColor="#ff8080"/>
+                <stop offset="50%" stopColor="#e53935"/>
+                <stop offset="100%" stopColor="#8B0000"/>
+              </radialGradient>
+              <radialGradient id="bluePeg" cx="30%" cy="30%">
+                <stop offset="0%" stopColor="#80c0ff"/>
+                <stop offset="50%" stopColor="#1e88e5"/>
+                <stop offset="100%" stopColor="#0d47a1"/>
+              </radialGradient>
+            </defs>
+            
+            {/* Board background */}
+            <rect x="5" y="5" width="310" height="760" rx="15" fill="#5D3A1A" stroke="#2d1810" strokeWidth="4"/>
+            
+            {/* Track inlays */}
+            <rect x="40" y="60" width="45" height="590" rx="6" fill="url(#copper)"/>
+            <rect x="137" y="60" width="45" height="590" rx="6" fill="url(#copper)"/>
+            <rect x="235" y="60" width="45" height="590" rx="6" fill="url(#copper)"/>
+            
+            {/* Start area */}
+            <rect x="120" y="665" width="80" height="50" rx="6" fill="url(#copper)"/>
+            
+            {/* Finish area */}
+            <rect x="120" y="18" width="80" height="35" rx="6" fill="url(#copper)"/>
+            
+            {/* Labels */}
+            <text x="160" y="42" textAnchor="middle" fontSize="13" fill="#2d1810" fontFamily="Georgia" fontWeight="bold">FINISH</text>
+            <text x="160" y="700" textAnchor="middle" fontSize="12" fill="#2d1810" fontFamily="Georgia" fontWeight="bold">START</text>
+            
+            {/* Column headers */}
+            <text x="62" y="55" textAnchor="middle" fontSize="9" fill="#d4a574" fontFamily="Georgia">1-40↑</text>
+            <text x="160" y="658" textAnchor="middle" fontSize="9" fill="#d4a574" fontFamily="Georgia">81-120↑</text>
+            <text x="258" y="55" textAnchor="middle" fontSize="9" fill="#d4a574" fontFamily="Georgia">41-80↓</text>
+            
+            {/* Left column (1-40 going UP) */}
+            {renderColumn(leftCol, 1, true, 'left')}
+            
+            {/* Right column (41-80 going DOWN) */}
+            {renderColumn(rightCol, 41, false, 'right')}
+            
+            {/* Center column (81-120 going UP) */}
+            {renderColumn(centerCol, 81, true, 'left')}
+            
+            {/* Finish holes */}
+            <circle cx={centerCol.x1} cy={finishY} r={holeRadius} fill="#1a1208"/>
+            <circle cx={centerCol.x2} cy={finishY} r={holeRadius} fill="#1a1208"/>
+            
+            {/* Start holes - 2 per player for back pegs */}
+            <circle cx={centerCol.x1} cy={startY} r={holeRadius} fill="#1a1208"/>
+            <circle cx={centerCol.x2} cy={startY} r={holeRadius} fill="#1a1208"/>
+            <circle cx={centerCol.x1} cy={startY + 15} r={holeRadius} fill="#1a1208"/>
+            <circle cx={centerCol.x2} cy={startY + 15} r={holeRadius} fill="#1a1208"/>
+            
+            {/* Back pegs (previous scores) - rendered first so front pegs appear on top */}
+            {renderPeg(p1PrevPos, 'redPeg', '#600', true)}
+            {renderPeg(p2PrevPos, 'bluePeg', '#024', true)}
+            
+            {/* Front pegs (current scores) */}
+            {renderPeg(p1Pos, 'redPeg', '#600', false)}
+            {renderPeg(p2Pos, 'bluePeg', '#024', false)}
+          </svg>
+        </div>
+      );
+    };
+
+    // Score Breakdown Modal
+    const ScoreBreakdown = ({ scoreResult, onClose, title }) => {
+      if (!scoreResult) return null;
+      
+      const formatBreakdown = () => {
+        const lines = [];
+        
+        if (scoreResult.fifteens?.points > 0) {
+          lines.push({ label: 'Fifteens', points: scoreResult.fifteens.points, details: scoreResult.fifteens.combinations.map(c => c.description) });
+        }
+        if (scoreResult.pairs?.points > 0) {
+          lines.push({ label: 'Pairs', points: scoreResult.pairs.points, details: scoreResult.pairs.combinations.map(c => c.description) });
+        }
+        if (scoreResult.runs?.points > 0) {
+          lines.push({ label: 'Runs', points: scoreResult.runs.points, details: scoreResult.runs.combinations.map(c => c.description) });
+        }
+        if (scoreResult.flush?.points > 0) {
+          lines.push({ label: 'Flush', points: scoreResult.flush.points, details: [scoreResult.flush.description] });
+        }
+        if (scoreResult.nobs?.points > 0) {
+          lines.push({ label: 'Nobs', points: scoreResult.nobs.points, details: [scoreResult.nobs.description] });
+        }
+        
+        return lines;
+      };
+      
+      const breakdown = formatBreakdown();
+      
+      return (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }} onClick={onClose}>
+          <div style={{
+            background: 'linear-gradient(145deg, #f5f0e6, #e8dcc8)',
+            borderRadius: 16,
+            padding: 24,
+            maxWidth: 400,
+            width: '90%',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+            border: '3px solid #8B4513',
+            animation: 'scorePopup 0.3s ease-out'
+          }} onClick={e => e.stopPropagation()}>
+            <h2 style={{
+              fontFamily: 'Cinzel, serif',
+              color: '#2d1810',
+              marginBottom: 16,
+              textAlign: 'center',
+              borderBottom: '2px solid #8B4513',
+              paddingBottom: 8
+            }}>{title}</h2>
+            
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 12 }}>
+                {scoreResult.hand?.map((display, i) => (
+                  <span key={i} style={{
+                    padding: '4px 8px',
+                    background: '#fff',
+                    borderRadius: 4,
+                    fontWeight: 'bold',
+                    color: display.includes('♥') || display.includes('♦') ? '#c41e3a' : '#1a1a2e'
+                  }}>{display}</span>
+                ))}
+                <span style={{ padding: '4px 8px', background: '#ffc82e', borderRadius: 4, fontWeight: 'bold' }}>
+                  {scoreResult.starter}
+                </span>
+              </div>
+            </div>
+            
+            {breakdown.length > 0 ? (
+              <div style={{ marginBottom: 16 }}>
+                {breakdown.map((item, i) => (
+                  <div key={i} style={{ marginBottom: 12 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', color: '#2d1810' }}>
+                      <span>{item.label}</span>
+                      <span>{item.points} pts</span>
+                    </div>
+                    <div style={{ fontSize: 13, color: '#666', marginLeft: 12 }}>
+                      {item.details.map((d, j) => <div key={j}>• {d}</div>)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center', color: '#666', marginBottom: 16 }}>No points scored</div>
+            )}
+            
+            <div style={{
+              textAlign: 'center',
+              fontSize: 28,
+              fontWeight: 'bold',
+              color: '#0051ba',
+              fontFamily: 'Cinzel, serif',
+              borderTop: '2px solid #8B4513',
+              paddingTop: 12
+            }}>
+              Total: {scoreResult.total} points
+            </div>
+            
+            <button onClick={onClose} style={{
+              display: 'block',
+              width: '100%',
+              marginTop: 16,
+              padding: '10px 20px',
+              background: 'linear-gradient(180deg, #8B4513, #654321)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 8,
+              fontSize: 16,
+              fontFamily: 'Cinzel, serif',
+              cursor: 'pointer',
+              boxShadow: '0 4px 8px rgba(0,0,0,0.3)'
+            }}>
+              Continue
+            </button>
+          </div>
+        </div>
+      );
+    };
+
+    // How to Play Modal
+    const HowToPlayModal = ({ onClose }) => (
+      <div style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.85)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1001,
+        padding: 20,
+        overflowY: 'auto'
+      }} onClick={onClose}>
+        <div style={{
+          background: 'linear-gradient(145deg, #f5f0e6, #e8dcc8)',
+          borderRadius: 16,
+          padding: 24,
+          maxWidth: 600,
+          width: '95%',
+          maxHeight: '90vh',
+          overflowY: 'auto',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+          border: '3px solid #8B4513'
+        }} onClick={e => e.stopPropagation()}>
+          <h2 style={{
+            fontFamily: 'Cinzel, serif',
+            color: '#2d1810',
+            marginBottom: 16,
+            textAlign: 'center',
+            fontSize: 24
+          }}>📖 How to Play Cribbage</h2>
+          
+          <div style={{ color: '#333', lineHeight: 1.6, fontSize: 14 }}>
+            <h3 style={{ color: '#8B4513', marginTop: 16, marginBottom: 8 }}>🎯 Goal</h3>
+            <p>Be the first to reach <strong>121 points</strong> by making card combinations.</p>
+            
+            <h3 style={{ color: '#8B4513', marginTop: 16, marginBottom: 8 }}>📋 Game Flow</h3>
+            <ol style={{ marginLeft: 20, marginBottom: 12 }}>
+              <li><strong>Deal:</strong> Each player gets 6 cards</li>
+              <li><strong>Discard:</strong> Each player puts 2 cards in the "crib" (extra hand for dealer)</li>
+              <li><strong>Cut:</strong> A "starter" card is revealed - both players use it</li>
+              <li><strong>Pegging:</strong> Take turns playing cards, scoring as you go</li>
+              <li><strong>Counting:</strong> Score your hand + starter, then dealer scores crib</li>
+            </ol>
+            
+            <h3 style={{ color: '#8B4513', marginTop: 16, marginBottom: 8 }}>🃏 Pegging (The Play)</h3>
+            <ul style={{ marginLeft: 20, marginBottom: 12 }}>
+              <li>Take turns playing one card at a time</li>
+              <li>Running count can't exceed 31</li>
+              <li>Say "Go" if you can't play without exceeding 31</li>
+              <li>Score points for: 15s, 31s, pairs, and runs</li>
+              <li>Last card played = 1 point (or 2 if it hits 31)</li>
+            </ul>
+            
+            <h3 style={{ color: '#8B4513', marginTop: 16, marginBottom: 8 }}>✋ Hand Scoring</h3>
+            <ul style={{ marginLeft: 20, marginBottom: 12 }}>
+              <li><strong>15s:</strong> Any combo totaling 15 = 2 pts each</li>
+              <li><strong>Pairs:</strong> 2 pts (three of a kind = 6, four = 12)</li>
+              <li><strong>Runs:</strong> 3+ cards in sequence = 1 pt per card</li>
+              <li><strong>Flush:</strong> 4 cards same suit = 4 pts (5 = 5 pts)</li>
+              <li><strong>Nobs:</strong> Jack matching starter suit = 1 pt</li>
+            </ul>
+            
+            <h3 style={{ color: '#8B4513', marginTop: 16, marginBottom: 8 }}>💡 Tips</h3>
+            <ul style={{ marginLeft: 20 }}>
+              <li>Keep cards that work together (5s are great!)</li>
+              <li>Be careful what you give to opponent's crib</li>
+              <li>Use the 💡 Hint button if you're stuck</li>
+            </ul>
+          </div>
+          
+          <button onClick={onClose} style={{
+            display: 'block',
+            width: '100%',
+            marginTop: 20,
+            padding: '12px 20px',
+            background: 'linear-gradient(180deg, #0051ba, #003d8f)',
+            color: '#fff',
+            border: '2px solid #ffc82e',
+            borderRadius: 8,
+            fontSize: 16,
+            fontFamily: 'Cinzel, serif',
+            cursor: 'pointer'
+          }}>
+            Got it!
+          </button>
+        </div>
+      </div>
+    );
+
+    // Scoring Reference Modal
+    const ScoringRefModal = ({ onClose }) => (
+      <div style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.85)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1001,
+        padding: 20
+      }} onClick={onClose}>
+        <div style={{
+          background: 'linear-gradient(145deg, #f5f0e6, #e8dcc8)',
+          borderRadius: 16,
+          padding: 24,
+          maxWidth: 450,
+          width: '95%',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+          border: '3px solid #8B4513'
+        }} onClick={e => e.stopPropagation()}>
+          <h2 style={{
+            fontFamily: 'Cinzel, serif',
+            color: '#2d1810',
+            marginBottom: 16,
+            textAlign: 'center',
+            fontSize: 22
+          }}>📊 Scoring Reference</h2>
+          
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid #8B4513' }}>
+                <th style={{ textAlign: 'left', padding: 8, color: '#8B4513' }}>Combination</th>
+                <th style={{ textAlign: 'center', padding: 8, color: '#8B4513' }}>Points</th>
+                <th style={{ textAlign: 'left', padding: 8, color: '#8B4513' }}>Example</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style={{ borderBottom: '1px solid #ccc' }}>
+                <td style={{ padding: 8 }}><strong>Fifteen</strong></td>
+                <td style={{ padding: 8, textAlign: 'center' }}>2</td>
+                <td style={{ padding: 8, color: '#666' }}>7+8, 5+10, 5+5+5</td>
+              </tr>
+              <tr style={{ borderBottom: '1px solid #ccc' }}>
+                <td style={{ padding: 8 }}><strong>Pair</strong></td>
+                <td style={{ padding: 8, textAlign: 'center' }}>2</td>
+                <td style={{ padding: 8, color: '#666' }}>K♠ K♥</td>
+              </tr>
+              <tr style={{ borderBottom: '1px solid #ccc' }}>
+                <td style={{ padding: 8 }}><strong>Three of a Kind</strong></td>
+                <td style={{ padding: 8, textAlign: 'center' }}>6</td>
+                <td style={{ padding: 8, color: '#666' }}>7♠ 7♥ 7♦</td>
+              </tr>
+              <tr style={{ borderBottom: '1px solid #ccc' }}>
+                <td style={{ padding: 8 }}><strong>Four of a Kind</strong></td>
+                <td style={{ padding: 8, textAlign: 'center' }}>12</td>
+                <td style={{ padding: 8, color: '#666' }}>5♠ 5♥ 5♦ 5♣</td>
+              </tr>
+              <tr style={{ borderBottom: '1px solid #ccc' }}>
+                <td style={{ padding: 8 }}><strong>Run of 3</strong></td>
+                <td style={{ padding: 8, textAlign: 'center' }}>3</td>
+                <td style={{ padding: 8, color: '#666' }}>4-5-6</td>
+              </tr>
+              <tr style={{ borderBottom: '1px solid #ccc' }}>
+                <td style={{ padding: 8 }}><strong>Run of 4</strong></td>
+                <td style={{ padding: 8, textAlign: 'center' }}>4</td>
+                <td style={{ padding: 8, color: '#666' }}>4-5-6-7</td>
+              </tr>
+              <tr style={{ borderBottom: '1px solid #ccc' }}>
+                <td style={{ padding: 8 }}><strong>Run of 5</strong></td>
+                <td style={{ padding: 8, textAlign: 'center' }}>5</td>
+                <td style={{ padding: 8, color: '#666' }}>A-2-3-4-5</td>
+              </tr>
+              <tr style={{ borderBottom: '1px solid #ccc' }}>
+                <td style={{ padding: 8 }}><strong>Flush (4 cards)</strong></td>
+                <td style={{ padding: 8, textAlign: 'center' }}>4</td>
+                <td style={{ padding: 8, color: '#666' }}>4 same suit in hand</td>
+              </tr>
+              <tr style={{ borderBottom: '1px solid #ccc' }}>
+                <td style={{ padding: 8 }}><strong>Flush (5 cards)</strong></td>
+                <td style={{ padding: 8, textAlign: 'center' }}>5</td>
+                <td style={{ padding: 8, color: '#666' }}>Hand + starter same suit</td>
+              </tr>
+              <tr style={{ borderBottom: '1px solid #ccc' }}>
+                <td style={{ padding: 8 }}><strong>Nobs</strong></td>
+                <td style={{ padding: 8, textAlign: 'center' }}>1</td>
+                <td style={{ padding: 8, color: '#666' }}>Jack of starter's suit</td>
+              </tr>
+              <tr>
+                <td style={{ padding: 8 }}><strong>His Heels</strong></td>
+                <td style={{ padding: 8, textAlign: 'center' }}>2</td>
+                <td style={{ padding: 8, color: '#666' }}>Starter is a Jack (dealer)</td>
+              </tr>
+            </tbody>
+          </table>
+          
+          <div style={{ marginTop: 16, padding: 12, background: '#fff8dc', borderRadius: 8, fontSize: 13 }}>
+            <strong>⚡ Pegging Bonus:</strong> Hitting exactly 15 or 31 = 2 pts. Last card = 1 pt (2 if it's 31).
+          </div>
+          
+          <button onClick={onClose} style={{
+            display: 'block',
+            width: '100%',
+            marginTop: 16,
+            padding: '12px 20px',
+            background: 'linear-gradient(180deg, #0051ba, #003d8f)',
+            color: '#fff',
+            border: '2px solid #ffc82e',
+            borderRadius: 8,
+            fontSize: 16,
+            fontFamily: 'Cinzel, serif',
+            cursor: 'pointer'
+          }}>
+            Close
+          </button>
+        </div>
+      </div>
+    );
+
+    // Phase Indicator Component
+    const PhaseIndicator = ({ phase, isDealer, isYourTurn, playerName, aiName }) => {
+      const getPhaseInfo = () => {
+        switch(phase) {
+          case GAME_PHASES.DISCARDING:
+            return {
+              title: '✋ Discard Phase',
+              instruction: 'Select 2 cards to send to the crib, then click "Send to Crib"',
+              tip: isDealer ? 'You\'re the dealer - the crib is yours!' : 'The crib goes to your opponent'
+            };
+          case GAME_PHASES.PEGGING:
+            return {
+              title: '🎯 Pegging Phase',
+              instruction: isYourTurn 
+                ? 'Click a card to play it. Try to score points!' 
+                : `Waiting for ${aiName} to play...`,
+              tip: 'Make 15 or 31 for 2 points. Pairs and runs score too!'
+            };
+          case GAME_PHASES.COUNTING_PONE:
+            return {
+              title: '🔢 Counting - Pone\'s Hand',
+              instruction: 'Click "Count Pone\'s Hand" to score',
+              tip: 'The non-dealer (pone) counts first'
+            };
+          case GAME_PHASES.COUNTING_DEALER:
+            return {
+              title: '🔢 Counting - Dealer\'s Hand',
+              instruction: 'Click "Count Dealer\'s Hand" to score',
+              tip: 'Dealer counts second (slight advantage)'
+            };
+          case GAME_PHASES.COUNTING_CRIB:
+            return {
+              title: '🔢 Counting - The Crib',
+              instruction: 'Click "Count Crib" to score',
+              tip: 'Only the dealer scores the crib'
+            };
+          default:
+            return { title: '', instruction: '', tip: '' };
+        }
+      };
+      
+      const info = getPhaseInfo();
+      if (!info.title) return null;
+      
+      return (
+        <div style={{
+          background: 'linear-gradient(135deg, rgba(0,81,186,0.9), rgba(0,61,143,0.9))',
+          padding: '10px 16px',
+          borderRadius: 10,
+          marginBottom: 12,
+          border: '2px solid #ffc82e',
+          animation: 'slide-up 0.3s ease-out'
+        }}>
+          <div style={{ 
+            fontFamily: 'Cinzel, serif', 
+            color: '#ffc82e', 
+            fontSize: 14,
+            fontWeight: 'bold',
+            marginBottom: 4
+          }}>
+            {info.title}
+          </div>
+          <div style={{ color: '#fff', fontSize: 13, marginBottom: 4 }}>
+            {info.instruction}
+          </div>
+          <div style={{ color: '#8fbc8f', fontSize: 11, fontStyle: 'italic' }}>
+            💡 {info.tip}
+          </div>
+        </div>
+      );
+    };
+
+    // ============================================================================
+    // MAIN GAME COMPONENT
+    // ============================================================================
+
+    const CribbageGame = () => {
+      // Game state
+      const [gameState, setGameState] = useState(null);
+      const [selectedCards, setSelectedCards] = useState([]);
+      const [message, setMessage] = useState('');
+      const [showScoreBreakdown, setShowScoreBreakdown] = useState(null);
+      const [breakdownTitle, setBreakdownTitle] = useState('');
+      const [lastPeggingScore, setLastPeggingScore] = useState(null);
+      
+      // Manual scoring state
+      const [manualScoreInput, setManualScoreInput] = useState('');
+      const [manualScorePhase, setManualScorePhase] = useState(null); // 'pone', 'dealer', 'crib'
+      const [manualScoreResult, setManualScoreResult] = useState(null); // {correct, actual, guess, breakdown}
+      
+      // Tutor hint state
+      const [showHint, setShowHint] = useState(null);
+      const [showHowToPlay, setShowHowToPlay] = useState(false);
+      const [showScoringRef, setShowScoringRef] = useState(false);
+      const [showBoard, setShowBoard] = useState(true);
+      
+      // Settings
+      const [settings, setSettings] = useState({
+        playerName: 'Mike',
+        aiName: 'Clever Clara',
+        aiDifficulty: 'medium',
+        manualScoring: false,
+        soundEnabled: true,
+        tutorLevel: 'medium'
+      });
+      
+      // Sync sound setting with SoundManager
+      useEffect(() => {
+        SoundManager.enabled = settings.soundEnabled;
+      }, [settings.soundEnabled]);
+      
+      const [gameStarted, setGameStarted] = useState(false);
+      
+      // Initialize game
+      const startNewGame = () => {
+        SoundManager.init();
+        SoundManager.shuffle();
+        
+        const deck = shuffleDeck(createDeck());
+        
+        // Cut for deal
+        const cut1 = deck[Math.floor(Math.random() * 52)];
+        let cut2 = deck[Math.floor(Math.random() * 52)];
+        while (cut2.id === cut1.id) {
+          cut2 = deck[Math.floor(Math.random() * 52)];
+        }
+        
+        const dealer = cut1.order < cut2.order ? 1 : 2;
+        
+        setMessage(`${cut1.order < cut2.order ? settings.playerName : settings.aiName} cut lower (${cut1.order < cut2.order ? cut1.display : cut2.display}) and will deal first.`);
+        
+        const freshDeck = shuffleDeck(createDeck());
+        const { dealt: hand1, remaining: deck1 } = dealCards(freshDeck, 6);
+        const { dealt: hand2, remaining: deck2 } = dealCards(deck1, 6);
+        
+        setGameState({
+          player1: { score: 0, prevScore: 0, hand: hand1, name: settings.playerName },
+          player2: { score: 0, prevScore: 0, hand: hand2, name: settings.aiName },
+          dealer,
+          currentPlayer: 1, // Human is always player 1
+          phase: GAME_PHASES.DISCARDING,
+          deck: deck2,
+          crib: [],
+          starter: null,
+          pegging: createPeggingState(),
+          player1PlayedCards: [],
+          player2PlayedCards: [],
+          player1PeggingHand: [],
+          player2PeggingHand: [],
+          handNumber: 1,
+          scoringHistory: []
+        });
+        
+        setSelectedCards([]);
+        setGameStarted(true);
+      };
+      
+      // Handle card selection during discard phase
+      const handleCardClick = (cardId) => {
+        if (gameState.phase !== GAME_PHASES.DISCARDING) return;
+        
+        setSelectedCards(prev => {
+          if (prev.includes(cardId)) {
+            return prev.filter(id => id !== cardId);
+          }
+          if (prev.length >= 2) {
+            return [...prev.slice(1), cardId];
+          }
+          return [...prev, cardId];
+        });
+      };
+      
+      // Confirm discard
+      const confirmDiscard = () => {
+        if (selectedCards.length !== 2) {
+          setMessage('Please select exactly 2 cards to discard to the crib.');
+          SoundManager.error();
+          return;
+        }
+        
+        SoundManager.cardDeal();
+        
+        const newCrib = [...gameState.crib, ...gameState.player1.hand.filter(c => selectedCards.includes(c.id))];
+        const newHand = gameState.player1.hand.filter(c => !selectedCards.includes(c.id));
+        
+        // AI discards using smart strategy based on difficulty
+        const aiHand = [...gameState.player2.hand];
+        const isAIDealer = gameState.dealer === 2;
+        const aiDiscards = aiSelectDiscards(aiHand, isAIDealer, settings.aiDifficulty);
+        const aiNewHand = aiHand.filter(c => !aiDiscards.some(d => d.id === c.id));
+        
+        const finalCrib = [...newCrib, ...aiDiscards];
+        
+        // Cut starter card
+        const cutIndex = Math.floor(Math.random() * gameState.deck.length);
+        const starter = gameState.deck[cutIndex];
+        
+        let newScore1 = gameState.player1.score;
+        let newScore2 = gameState.player2.score;
+        let newPrevScore1 = gameState.player1.prevScore;
+        let newPrevScore2 = gameState.player2.prevScore;
+        let heelsMsg = '';
+        
+        // Check for His Heels
+        if (starter.rank === 'J') {
+          if (gameState.dealer === 1) {
+            newPrevScore1 = newScore1;
+            newScore1 += 2;
+            heelsMsg = ` ${settings.playerName} scores 2 for His Heels!`;
+          } else {
+            newPrevScore2 = newScore2;
+            newScore2 += 2;
+            heelsMsg = ` ${settings.aiName} scores 2 for His Heels!`;
+          }
+        }
+        
+        setMessage(`Starter card: ${starter.display}.${heelsMsg} Pegging begins! ${gameState.dealer === 1 ? settings.aiName : settings.playerName} plays first.`);
+        
+        setGameState(prev => ({
+          ...prev,
+          player1: { ...prev.player1, hand: newHand, score: newScore1, prevScore: newPrevScore1 },
+          player2: { ...prev.player2, hand: aiNewHand, score: newScore2, prevScore: newPrevScore2 },
+          crib: finalCrib,
+          starter,
+          phase: GAME_PHASES.PEGGING,
+          currentPlayer: gameState.dealer === 1 ? 2 : 1, // Pone plays first
+          player1PeggingHand: [...newHand],
+          player2PeggingHand: [...aiNewHand],
+          pegging: createPeggingState()
+        }));
+        
+        setSelectedCards([]);
+      };
+      
+      // Handle pegging play
+      const playPeggingCard = (cardId) => {
+        if (gameState.phase !== GAME_PHASES.PEGGING || gameState.currentPlayer !== 1) return;
+        
+        const card = gameState.player1PeggingHand.find(c => c.id === cardId);
+        if (!card) return;
+        
+        if (gameState.pegging.runningTotal + card.value > 31) {
+          setMessage(`Can't play ${card.display} - would exceed 31. Try another card or say "Go".`);
+          SoundManager.error();
+          return;
+        }
+        
+        SoundManager.cardFlip();
+        
+        // Score the play
+        const playScore = scorePeggingPlay(card, gameState.pegging);
+        
+        const newPegging = {
+          ...gameState.pegging,
+          playedCards: [...gameState.pegging.playedCards, card],
+          runningTotal: playScore.newTotal,
+          lastPlayer: 1,
+          goCount: 0
+        };
+        
+        // Reset if hit 31
+        const finalPegging = playScore.newTotal === 31 ? createPeggingState() : newPegging;
+        
+        const newHand = gameState.player1PeggingHand.filter(c => c.id !== cardId);
+        const newPlayedCards = [...gameState.player1PlayedCards, card];
+        
+        let scoreMsg = playScore.points > 0 ? ` You score ${playScore.points}! (${playScore.description})` : '';
+        if (playScore.newTotal === 31) scoreMsg += ' Count resets to 0.';
+        
+        setMessage(`You play ${card.display}. Count: ${playScore.newTotal}.${scoreMsg}`);
+        
+        if (playScore.points > 0) {
+          setLastPeggingScore({ points: playScore.points, description: playScore.description });
+          setTimeout(() => setLastPeggingScore(null), 2000);
+          
+          // Play score sound
+          if (playScore.newTotal === 15 || playScore.newTotal === 31) {
+            setTimeout(() => SoundManager.fifteen(), 200);
+          } else {
+            setTimeout(() => SoundManager.scorePoints(playScore.points), 200);
+          }
+          setTimeout(() => SoundManager.pegMove(), 400);
+        }
+        
+        setGameState(prev => ({
+          ...prev,
+          player1: { 
+            ...prev.player1, 
+            prevScore: playScore.points > 0 ? prev.player1.score : prev.player1.prevScore,
+            score: prev.player1.score + playScore.points 
+          },
+          player1PeggingHand: newHand,
+          player1PlayedCards: newPlayedCards,
+          pegging: finalPegging,
+          currentPlayer: 2
+        }));
+      };
+      
+      // Auto-pass to AI when it's human's turn but human has no cards
+      useEffect(() => {
+        if (!gameState || gameState.phase !== GAME_PHASES.PEGGING || gameState.currentPlayer !== 1) return;
+        
+        // If human has no cards, automatically pass to AI
+        if (gameState.player1PeggingHand.length === 0 && gameState.player2PeggingHand.length > 0) {
+          const timer = setTimeout(() => {
+            setGameState(prev => ({ ...prev, currentPlayer: 2 }));
+          }, 500);
+          return () => clearTimeout(timer);
+        }
+      }, [gameState?.currentPlayer, gameState?.phase, gameState?.player1PeggingHand?.length]);
+      
+      // AI pegging turn
+      useEffect(() => {
+        if (!gameState || gameState.phase !== GAME_PHASES.PEGGING || gameState.currentPlayer !== 2) return;
+        
+        const timer = setTimeout(() => {
+          const playable = getPlayableCards(gameState.player2PeggingHand, gameState.pegging.runningTotal);
+          
+          if (playable.length === 0) {
+            // AI says Go
+            if (gameState.player1PeggingHand.length === 0 && gameState.player2PeggingHand.length === 0) {
+              // Both out of cards, award last card point and move to counting
+              const lastPlayer = gameState.pegging.lastPlayer;
+              const lastCardPoints = gameState.pegging.runningTotal === 31 ? 0 : 1;
+              
+              setMessage(`All cards played. ${lastPlayer === 1 ? settings.playerName : settings.aiName} gets ${lastCardPoints} for last card. Time to count hands!`);
+              
+              setGameState(prev => ({
+                ...prev,
+                [`player${lastPlayer}`]: { 
+                  ...prev[`player${lastPlayer}`], 
+                  prevScore: lastCardPoints > 0 ? prev[`player${lastPlayer}`].score : prev[`player${lastPlayer}`].prevScore,
+                  score: prev[`player${lastPlayer}`].score + lastCardPoints 
+                },
+                phase: GAME_PHASES.COUNTING_PONE,
+                currentPlayer: prev.dealer === 1 ? 2 : 1
+              }));
+              return;
+            }
+            
+            // Check if human can play
+            const humanPlayable = getPlayableCards(gameState.player1PeggingHand, gameState.pegging.runningTotal);
+            
+            if (humanPlayable.length === 0) {
+              // Neither can play - award Go point to last player
+              const goPoints = gameState.pegging.runningTotal === 31 ? 0 : 1;
+              const lastPlayer = gameState.pegging.lastPlayer || 1;
+              
+              setMessage(`Both say "Go". ${lastPlayer === 1 ? settings.playerName : settings.aiName} gets ${goPoints} point. Count resets.`);
+              
+              setGameState(prev => ({
+                ...prev,
+                [`player${lastPlayer}`]: { 
+                  ...prev[`player${lastPlayer}`], 
+                  prevScore: goPoints > 0 ? prev[`player${lastPlayer}`].score : prev[`player${lastPlayer}`].prevScore,
+                  score: prev[`player${lastPlayer}`].score + goPoints 
+                },
+                pegging: createPeggingState(),
+                currentPlayer: prev.player1PeggingHand.length > 0 ? 1 : 2
+              }));
+            } else {
+              setMessage(`${settings.aiName} says "Go". Your turn - play if you can!`);
+              setGameState(prev => ({ ...prev, currentPlayer: 1 }));
+            }
+            return;
+          }
+          
+          // AI plays a card using smart strategy based on difficulty
+          const card = aiSelectPeggingCard(
+            playable, 
+            gameState.player2PeggingHand, 
+            gameState.pegging, 
+            settings.aiDifficulty
+          );
+          
+          const playScore = scorePeggingPlay(card, gameState.pegging);
+          
+          const newPegging = {
+            ...gameState.pegging,
+            playedCards: [...gameState.pegging.playedCards, card],
+            runningTotal: playScore.newTotal,
+            lastPlayer: 2,
+            goCount: 0
+          };
+          
+          const finalPegging = playScore.newTotal === 31 ? createPeggingState() : newPegging;
+          
+          const newHand = gameState.player2PeggingHand.filter(c => c.id !== card.id);
+          const newPlayedCards = [...gameState.player2PlayedCards, card];
+          
+          let scoreMsg = playScore.points > 0 ? ` ${settings.aiName} scores ${playScore.points}! (${playScore.description})` : '';
+          if (playScore.newTotal === 31) scoreMsg += ' Count resets to 0.';
+          
+          setMessage(`${settings.aiName} plays ${card.display}. Count: ${playScore.newTotal}.${scoreMsg}`);
+          
+          // Check if pegging is complete
+          const allDone = newHand.length === 0 && gameState.player1PeggingHand.length === 0;
+          
+          if (allDone) {
+            const lastCardPoints = playScore.newTotal === 31 ? 0 : 1;
+            setTimeout(() => {
+              setMessage(`All cards played. ${settings.aiName} gets ${lastCardPoints} for last card. Time to count hands!`);
+              setGameState(prev => ({
+                ...prev,
+                player2: { 
+                  ...prev.player2, 
+                  prevScore: (playScore.points + lastCardPoints) > 0 ? prev.player2.score : prev.player2.prevScore,
+                  score: prev.player2.score + playScore.points + lastCardPoints 
+                },
+                player2PeggingHand: newHand,
+                player2PlayedCards: newPlayedCards,
+                pegging: finalPegging,
+                phase: GAME_PHASES.COUNTING_PONE,
+                currentPlayer: prev.dealer === 1 ? 2 : 1
+              }));
+            }, 1000);
+          } else {
+            setGameState(prev => ({
+              ...prev,
+              player2: { 
+                ...prev.player2, 
+                prevScore: playScore.points > 0 ? prev.player2.score : prev.player2.prevScore,
+                score: prev.player2.score + playScore.points 
+              },
+              player2PeggingHand: newHand,
+              player2PlayedCards: newPlayedCards,
+              pegging: finalPegging,
+              currentPlayer: 1
+            }));
+          }
+        }, 1200);
+        
+        return () => clearTimeout(timer);
+      }, [gameState?.currentPlayer, gameState?.phase, gameState?.pegging?.runningTotal, gameState?.player2PeggingHand?.length]);
+      
+      // Handle "Go" button
+      const sayGo = () => {
+        if (gameState.phase !== GAME_PHASES.PEGGING || gameState.currentPlayer !== 1) return;
+        
+        const playable = getPlayableCards(gameState.player1PeggingHand, gameState.pegging.runningTotal);
+        
+        if (playable.length > 0) {
+          setMessage("You have a card you can play! You can't say Go yet.");
+          SoundManager.error();
+          return;
+        }
+        
+        SoundManager.goSound();
+        setMessage(`You say "Go". ${settings.aiName}'s turn.`);
+        setGameState(prev => ({ ...prev, currentPlayer: 2 }));
+      };
+      
+      // Handle counting phase
+      const countHand = () => {
+        // If manual scoring is enabled and it's the player's hand, prompt for score
+        if (settings.manualScoring) {
+          if (gameState.phase === GAME_PHASES.COUNTING_PONE) {
+            const pone = gameState.dealer === 1 ? 2 : 1;
+            if (pone === 1) {
+              // Player is pone - prompt for manual score
+              setManualScorePhase('pone');
+              setManualScoreInput('');
+              setManualScoreResult(null);
+              return;
+            }
+          } else if (gameState.phase === GAME_PHASES.COUNTING_DEALER) {
+            const dealer = gameState.dealer;
+            if (dealer === 1) {
+              // Player is dealer - prompt for manual score
+              setManualScorePhase('dealer');
+              setManualScoreInput('');
+              setManualScoreResult(null);
+              return;
+            }
+          } else if (gameState.phase === GAME_PHASES.COUNTING_CRIB) {
+            const dealer = gameState.dealer;
+            if (dealer === 1) {
+              // Player's crib - prompt for manual score
+              setManualScorePhase('crib');
+              setManualScoreInput('');
+              setManualScoreResult(null);
+              return;
+            }
+          }
+        }
+        
+        // Auto-score (AI hands or manual scoring disabled)
+        if (gameState.phase === GAME_PHASES.COUNTING_PONE) {
+          const pone = gameState.dealer === 1 ? 2 : 1;
+          const hand = gameState[`player${pone}PlayedCards`];
+          const result = scoreHand(hand, gameState.starter, false);
+          
+          setBreakdownTitle(`${pone === 1 ? settings.playerName : settings.aiName}'s Hand`);
+          setShowScoreBreakdown(result);
+          
+          // Sound for scoring
+          if (result.total > 0) {
+            SoundManager.scorePoints(Math.min(result.total, 10));
+            setTimeout(() => SoundManager.pegMove(), 500);
+          }
+          
+          setGameState(prev => ({
+            ...prev,
+            [`player${pone}`]: { 
+              ...prev[`player${pone}`], 
+              prevScore: result.total > 0 ? prev[`player${pone}`].score : prev[`player${pone}`].prevScore,
+              score: prev[`player${pone}`].score + result.total 
+            },
+            phase: GAME_PHASES.COUNTING_DEALER
+          }));
+        } else if (gameState.phase === GAME_PHASES.COUNTING_DEALER) {
+          const dealer = gameState.dealer;
+          const hand = gameState[`player${dealer}PlayedCards`];
+          const result = scoreHand(hand, gameState.starter, false);
+          
+          setBreakdownTitle(`${dealer === 1 ? settings.playerName : settings.aiName}'s Hand (Dealer)`);
+          setShowScoreBreakdown(result);
+          
+          // Sound for scoring
+          if (result.total > 0) {
+            SoundManager.scorePoints(Math.min(result.total, 10));
+            setTimeout(() => SoundManager.pegMove(), 500);
+          }
+          
+          setGameState(prev => ({
+            ...prev,
+            [`player${dealer}`]: { 
+              ...prev[`player${dealer}`], 
+              prevScore: result.total > 0 ? prev[`player${dealer}`].score : prev[`player${dealer}`].prevScore,
+              score: prev[`player${dealer}`].score + result.total 
+            },
+            phase: GAME_PHASES.COUNTING_CRIB
+          }));
+        } else if (gameState.phase === GAME_PHASES.COUNTING_CRIB) {
+          processCribScore();
+        }
+      };
+      
+      // Process manual score submission
+      const submitManualScore = () => {
+        const guess = parseInt(manualScoreInput) || 0;
+        let hand, isCrib = false, title;
+        
+        if (manualScorePhase === 'pone') {
+          hand = gameState.player1PlayedCards;
+          title = `${settings.playerName}'s Hand`;
+        } else if (manualScorePhase === 'dealer') {
+          hand = gameState.player1PlayedCards;
+          title = `${settings.playerName}'s Hand (Dealer)`;
+        } else {
+          hand = gameState.crib;
+          isCrib = true;
+          title = `${settings.playerName}'s Crib`;
+        }
+        
+        const result = scoreHand(hand, gameState.starter, isCrib);
+        const correct = guess === result.total;
+        
+        setManualScoreResult({
+          correct,
+          actual: result.total,
+          guess,
+          breakdown: result
+        });
+        
+        setBreakdownTitle(title);
+        setShowScoreBreakdown(result);
+      };
+      
+      // Continue after manual score feedback
+      const continueAfterManualScore = () => {
+        const actual = manualScoreResult.actual;
+        
+        if (manualScorePhase === 'pone') {
+          setGameState(prev => ({
+            ...prev,
+            player1: { 
+              ...prev.player1, 
+              prevScore: actual > 0 ? prev.player1.score : prev.player1.prevScore,
+              score: prev.player1.score + actual 
+            },
+            phase: GAME_PHASES.COUNTING_DEALER
+          }));
+        } else if (manualScorePhase === 'dealer') {
+          setGameState(prev => ({
+            ...prev,
+            player1: { 
+              ...prev.player1, 
+              prevScore: actual > 0 ? prev.player1.score : prev.player1.prevScore,
+              score: prev.player1.score + actual 
+            },
+            phase: GAME_PHASES.COUNTING_CRIB
+          }));
+        } else {
+          // Crib phase - check for win or start new hand
+          const newScore = gameState.player1.score + actual;
+          if (newScore >= WINNING_SCORE) {
+            setGameState(prev => ({
+              ...prev,
+              player1: { ...prev.player1, prevScore: prev.player1.score, score: newScore },
+              phase: GAME_PHASES.GAME_OVER,
+              winner: 1
+            }));
+          } else {
+            startNewHandAfterCrib(actual);
+          }
+        }
+        
+        setManualScorePhase(null);
+        setManualScoreResult(null);
+        setManualScoreInput('');
+      };
+      
+      // Helper to process crib scoring (used by both auto and manual)
+      const processCribScore = () => {
+        const dealer = gameState.dealer;
+        const result = scoreHand(gameState.crib, gameState.starter, true);
+        
+        setBreakdownTitle(`${dealer === 1 ? settings.playerName : settings.aiName}'s Crib`);
+        setShowScoreBreakdown(result);
+        
+        const newScore = gameState[`player${dealer}`].score + result.total;
+        const newPrevScore = result.total > 0 ? gameState[`player${dealer}`].score : gameState[`player${dealer}`].prevScore;
+        
+        if (newScore >= WINNING_SCORE) {
+          setGameState(prev => ({
+            ...prev,
+            [`player${dealer}`]: { ...prev[`player${dealer}`], prevScore: newPrevScore, score: newScore },
+            phase: GAME_PHASES.GAME_OVER,
+            winner: dealer
+          }));
+        } else {
+          startNewHandAfterCrib(result.total, dealer);
+        }
+      };
+      
+      // Start new hand after crib counting
+      const startNewHandAfterCrib = (cribPoints, dealer = 1) => {
+        const newDealer = gameState.dealer === 1 ? 2 : 1;
+        const freshDeck = shuffleDeck(createDeck());
+        const { dealt: hand1, remaining: deck1 } = dealCards(freshDeck, 6);
+        const { dealt: hand2, remaining: deck2 } = dealCards(deck1, 6);
+        
+        setGameState(prev => ({
+          ...prev,
+          player1: { 
+            ...prev.player1, 
+            hand: hand1, 
+            prevScore: dealer === 1 && cribPoints > 0 ? prev.player1.score : prev.player1.prevScore,
+            score: prev.player1.score + (dealer === 1 ? cribPoints : 0) 
+          },
+          player2: { 
+            ...prev.player2, 
+            hand: hand2, 
+            prevScore: dealer === 2 && cribPoints > 0 ? prev.player2.score : prev.player2.prevScore,
+            score: prev.player2.score + (dealer === 2 ? cribPoints : 0) 
+          },
+          dealer: newDealer,
+          phase: GAME_PHASES.DISCARDING,
+          deck: deck2,
+          crib: [],
+          starter: null,
+          pegging: createPeggingState(),
+          player1PlayedCards: [],
+          player2PlayedCards: [],
+          handNumber: prev.handNumber + 1
+        }));
+        
+        setSelectedCards([]);
+        setMessage(`New hand! ${newDealer === 1 ? settings.playerName : settings.aiName} is now the dealer. Select 2 cards for the crib.`);
+      };
+      
+      // Check for win
+      useEffect(() => {
+        if (gameState?.player1?.score >= WINNING_SCORE && gameState.phase !== GAME_PHASES.GAME_OVER) {
+          setGameState(prev => ({ ...prev, phase: GAME_PHASES.GAME_OVER, winner: 1 }));
+          SoundManager.winFanfare();
+          createConfetti();
+        }
+        if (gameState?.player2?.score >= WINNING_SCORE && gameState.phase !== GAME_PHASES.GAME_OVER) {
+          setGameState(prev => ({ ...prev, phase: GAME_PHASES.GAME_OVER, winner: 2 }));
+          SoundManager.loseSound();
+        }
+      }, [gameState?.player1?.score, gameState?.player2?.score]);
+      
+      // Render setup screen
+      if (!gameStarted) {
+        return (
+          <div style={{
+            minHeight: '100vh',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 20,
+            background: 'linear-gradient(180deg, #1a472a 0%, #0d2818 100%)'
+          }}>
+            <div style={{
+              background: 'linear-gradient(145deg, #8B4513, #654321)',
+              padding: 40,
+              borderRadius: 20,
+              boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+              border: '4px solid #2d1810',
+              textAlign: 'center',
+              maxWidth: 400
+            }}>
+              <h1 style={{
+                fontFamily: 'Cinzel, serif',
+                color: '#d4a574',
+                fontSize: 36,
+                marginBottom: 8,
+                textShadow: '2px 2px 4px rgba(0,0,0,0.5)'
+              }}>
+                CRIBBAGE
+              </h1>
+              <p style={{ color: '#c4a484', marginBottom: 30, fontStyle: 'italic' }}>
+                The Classic Card Game
+              </p>
+              
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ color: '#d4a574', display: 'block', marginBottom: 8, fontFamily: 'Cinzel, serif' }}>
+                  Your Name
+                </label>
+                <input
+                  type="text"
+                  value={settings.playerName}
+                  onChange={e => setSettings(s => ({ ...s, playerName: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: '10px 16px',
+                    borderRadius: 8,
+                    border: '2px solid #d4a574',
+                    background: 'rgba(255,255,255,0.9)',
+                    fontSize: 16,
+                    fontFamily: 'Crimson Text, serif'
+                  }}
+                />
+              </div>
+              
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ color: '#d4a574', display: 'block', marginBottom: 8, fontFamily: 'Cinzel, serif' }}>
+                  AI Difficulty
+                </label>
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+                  {[
+                    { value: 'easy', label: 'Easy', desc: 'Random plays', aiName: 'Newbie Ned' },
+                    { value: 'medium', label: 'Medium', desc: 'Basic strategy', aiName: 'Clever Clara' },
+                    { value: 'hard', label: 'Hard', desc: 'Optimal play', aiName: 'Master Magnus' }
+                  ].map(level => (
+                    <button
+                      key={level.value}
+                      onClick={() => setSettings(s => ({ ...s, aiDifficulty: level.value, aiName: level.aiName }))}
+                      style={{
+                        flex: 1,
+                        padding: '10px 8px',
+                        borderRadius: 8,
+                        border: settings.aiDifficulty === level.value ? '3px solid #ffc82e' : '2px solid #d4a574',
+                        background: settings.aiDifficulty === level.value 
+                          ? 'linear-gradient(180deg, #0051ba, #003d8f)' 
+                          : 'rgba(255,255,255,0.1)',
+                        color: settings.aiDifficulty === level.value ? '#fff' : '#d4a574',
+                        cursor: 'pointer',
+                        fontFamily: 'Cinzel, serif',
+                        fontSize: 14,
+                        fontWeight: settings.aiDifficulty === level.value ? 600 : 400,
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      <div>{level.label}</div>
+                      <div style={{ fontSize: 10, opacity: 0.8, marginTop: 2 }}>{level.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              <div style={{ marginBottom: 30 }}>
+                <label style={{
+                  color: '#d4a574',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 10,
+                  cursor: 'pointer'
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={settings.manualScoring}
+                    onChange={e => setSettings(s => ({ ...s, manualScoring: e.target.checked }))}
+                    style={{ width: 18, height: 18 }}
+                  />
+                  Manual Scoring Mode
+                </label>
+                <p style={{ color: '#a08060', fontSize: 12, marginTop: 4 }}>
+                  (You count and enter your own scores)
+                </p>
+              </div>
+              
+              <div style={{ marginBottom: 30 }}>
+                <label style={{
+                  color: '#d4a574',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 10,
+                  cursor: 'pointer'
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={settings.soundEnabled}
+                    onChange={e => setSettings(s => ({ ...s, soundEnabled: e.target.checked }))}
+                    style={{ width: 18, height: 18 }}
+                  />
+                  🔊 Sound Effects
+                </label>
+              </div>
+              
+              <button
+                onClick={startNewGame}
+                style={{
+                  width: '100%',
+                  padding: '14px 28px',
+                  fontSize: 20,
+                  fontFamily: 'Cinzel, serif',
+                  fontWeight: 600,
+                  color: '#fff',
+                  background: 'linear-gradient(180deg, #0051ba, #003d8f)',
+                  border: '3px solid #ffc82e',
+                  borderRadius: 12,
+                  cursor: 'pointer',
+                  boxShadow: '0 6px 20px rgba(0,0,0,0.4)',
+                  transition: 'transform 0.2s'
+                }}
+                onMouseOver={e => e.target.style.transform = 'scale(1.02)'}
+                onMouseOut={e => e.target.style.transform = 'scale(1)'}
+              >
+                Deal Cards
+              </button>
+              
+              <button
+                onClick={() => setShowHowToPlay(true)}
+                style={{
+                  width: '100%',
+                  marginTop: 12,
+                  padding: '10px 20px',
+                  fontSize: 14,
+                  fontFamily: 'Cinzel, serif',
+                  color: '#d4a574',
+                  background: 'transparent',
+                  border: '2px solid #d4a574',
+                  borderRadius: 8,
+                  cursor: 'pointer'
+                }}
+              >
+                📖 New to Cribbage? Learn How to Play
+              </button>
+              
+              <div style={{ marginTop: 30, display: 'flex', justifyContent: 'center' }}>
+                <CardBack width={50} height={72} />
+              </div>
+            </div>
+          
+          {/* How to Play Modal - also available on start screen */}
+          {showHowToPlay && (
+            <HowToPlayModal onClose={() => setShowHowToPlay(false)} />
+          )}
+        </div>
+      );
+      }
+      
+      // Main game render
+      return (
+        <div style={{
+          minHeight: '100vh',
+          padding: 12,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 12,
+          background: 'linear-gradient(180deg, #1a472a 0%, #0d2818 100%)'
+        }}>
+          {/* Header */}
+          <div style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            width: '100%',
+            maxWidth: 800
+          }}>
+            <h1 style={{
+              fontFamily: 'Cinzel, serif',
+              color: '#d4a574',
+              fontSize: 20,
+              textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
+              margin: 0
+            }}>
+              CRIBBAGE
+            </h1>
+            <div style={{ 
+              color: '#c4a484', 
+              fontSize: 12,
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6
+            }}>
+              <span>Hand #{gameState?.handNumber}</span>
+              <span>•</span>
+              <span>{gameState?.dealer === 1 ? settings.playerName : settings.aiName} deals</span>
+              <span style={{ 
+                padding: '2px 6px', 
+                borderRadius: 4, 
+                background: settings.aiDifficulty === 'hard' ? '#8B0000' : settings.aiDifficulty === 'medium' ? '#0051ba' : '#2d6a2d',
+                fontSize: 10,
+                textTransform: 'uppercase'
+              }}>
+                {settings.aiDifficulty}
+              </span>
+              <button
+                onClick={() => {
+                  SoundManager.init();
+                  setSettings(s => ({ ...s, soundEnabled: !s.soundEnabled }));
+                  if (!settings.soundEnabled) SoundManager.click();
+                }}
+                style={{
+                  marginLeft: 12,
+                  padding: '2px 8px',
+                  borderRadius: 4,
+                  background: 'transparent',
+                  border: '1px solid #c4a484',
+                  color: '#c4a484',
+                  fontSize: 14,
+                  cursor: 'pointer'
+                }}
+                title={settings.soundEnabled ? 'Sound On' : 'Sound Off'}
+              >
+                {settings.soundEnabled ? '🔊' : '🔇'}
+              </button>
+              <button
+                onClick={() => setShowHowToPlay(true)}
+                style={{
+                  marginLeft: 8,
+                  padding: '2px 8px',
+                  borderRadius: 4,
+                  background: 'transparent',
+                  border: '1px solid #c4a484',
+                  color: '#c4a484',
+                  fontSize: 12,
+                  cursor: 'pointer'
+                }}
+                title="How to Play"
+              >
+                📖 Help
+              </button>
+              <button
+                onClick={() => setShowScoringRef(true)}
+                style={{
+                  marginLeft: 8,
+                  padding: '2px 8px',
+                  borderRadius: 4,
+                  background: 'transparent',
+                  border: '1px solid #c4a484',
+                  color: '#c4a484',
+                  fontSize: 12,
+                  cursor: 'pointer'
+                }}
+                title="Scoring Reference"
+              >
+                📊 Scoring
+              </button>
+            </div>
+          </div>
+          
+          {/* Main game area */}
+          <div style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 20,
+            justifyContent: 'center',
+            alignItems: 'flex-start',
+            maxWidth: 950,
+            width: '100%'
+          }}>
+            {/* Board section with toggle */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              {/* Score display - always visible */}
+              <div style={{
+                background: 'linear-gradient(145deg, #654321, #4a3420)',
+                padding: '10px 16px',
+                borderRadius: 10,
+                border: '2px solid #8B4513',
+                marginBottom: 10,
+                minWidth: 140
+              }}>
+                <div style={{ color: '#ff6b6b', fontWeight: 'bold', fontSize: 14, display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <span style={{ width: 14, height: 14, borderRadius: '50%', background: 'linear-gradient(135deg, #ff8080, #8B0000)', boxShadow: '0 1px 3px rgba(0,0,0,0.5)' }}></span>
+                  {settings.playerName}: {gameState?.player1?.score || 0}
+                </div>
+                <div style={{ color: '#64b5f6', fontWeight: 'bold', fontSize: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ width: 14, height: 14, borderRadius: '50%', background: 'linear-gradient(135deg, #80c0ff, #0d47a1)', boxShadow: '0 1px 3px rgba(0,0,0,0.5)' }}></span>
+                  {settings.aiName}: {gameState?.player2?.score || 0}
+                </div>
+              </div>
+              
+              {/* Board toggle button */}
+              <button
+                onClick={() => setShowBoard(!showBoard)}
+                style={{
+                  padding: '6px 12px',
+                  marginBottom: 8,
+                  fontSize: 12,
+                  fontFamily: 'Cinzel, serif',
+                  color: '#d4a574',
+                  background: 'rgba(0,0,0,0.3)',
+                  border: '1px solid #d4a574',
+                  borderRadius: 6,
+                  cursor: 'pointer'
+                }}
+              >
+                {showBoard ? '▼ Hide Board' : '▶ Show Board'}
+              </button>
+              
+              {/* Board on left */}
+              {showBoard && (
+                <div className="mobile-board">
+                  <CribbageBoard
+                    player1Score={gameState?.player1?.score || 0}
+                    player2Score={gameState?.player2?.score || 0}
+                    player1PrevScore={gameState?.player1?.prevScore || 0}
+                    player2PrevScore={gameState?.player2?.prevScore || 0}
+                    player1Name={settings.playerName}
+                    player2Name={settings.aiName}
+                  />
+                </div>
+              )}
+            </div>
+            
+            {/* Play area on right */}
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 12,
+              flex: 1,
+              minWidth: 300,
+              maxWidth: 550
+            }}>
+              {/* Message */}
+              <div style={{
+                background: 'rgba(0,0,0,0.4)',
+                padding: '12px 16px',
+                borderRadius: 8,
+                color: '#d4a574',
+                fontFamily: 'Crimson Text, serif',
+                fontSize: 15,
+                textAlign: 'center',
+                border: '1px solid rgba(212,165,116,0.3)',
+                minHeight: 48
+              }}>
+                {message}
+              </div>
+              
+              {/* Phase Indicator */}
+              <PhaseIndicator 
+                phase={gameState?.phase}
+                isDealer={gameState?.dealer === 1}
+                isYourTurn={gameState?.currentPlayer === 1}
+                playerName={settings.playerName}
+                aiName={settings.aiName}
+              />
+              
+              {/* Pegging Score Popup */}
+              {lastPeggingScore && (
+                <div style={{
+                  position: 'fixed',
+                  top: '30%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  background: 'linear-gradient(145deg, #ffc82e, #e6b000)',
+                  padding: '16px 32px',
+                  borderRadius: 12,
+                  fontSize: 24,
+                  fontWeight: 'bold',
+                  color: '#2d1810',
+                  fontFamily: 'Cinzel, serif',
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+                  zIndex: 100,
+                  animation: 'scorePopup 0.3s ease-out'
+                }}>
+                  +{lastPeggingScore.points}!
+                </div>
+              )}
+              
+              {/* Opponent's hand (face down during play) */}
+              <div style={{ textAlign: 'center' }}>
+                <div className="mobile-text-sm" style={{ color: '#8fbc8f', fontSize: 12, marginBottom: 4 }}>{settings.aiName}'s Hand</div>
+                <div className="mobile-gap-sm" style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
+                  {(gameState.phase === GAME_PHASES.PEGGING ? gameState.player2PeggingHand : gameState.player2.hand).map((card, i) => (
+                    <CardBack key={card.id} width={50} height={72} />
+                  ))}
+                </div>
+              </div>
+              
+              {/* Center play area */}
+              <div style={{
+                background: 'rgba(0,0,0,0.3)',
+                padding: 16,
+                borderRadius: 12,
+                border: '2px solid rgba(139,69,19,0.5)'
+              }}>
+                {/* Starter card */}
+                {gameState.starter && (
+                  <div style={{ textAlign: 'center', marginBottom: 12 }}>
+                    <div 
+                      style={{ 
+                        color: '#ffc82e', 
+                        fontSize: 12, 
+                        marginBottom: 4,
+                        cursor: 'help',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4
+                      }}
+                      title="The Starter (or 'cut card') is shared by both players when counting hands. It acts as a 5th card for everyone. If it's a Jack, the dealer scores 2 points ('His Heels')."
+                    >
+                      Starter
+                      <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: 14,
+                        height: 14,
+                        borderRadius: '50%',
+                        border: '1px solid #ffc82e',
+                        fontSize: 10,
+                        fontWeight: 'bold'
+                      }}>?</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'center' }}>
+                      <PlayingCard card={gameState.starter} />
+                    </div>
+                  </div>
+                )}
+                
+                {/* Pegging area */}
+                {gameState.phase === GAME_PHASES.PEGGING && (
+                  <div style={{ marginTop: 12 }}>
+                    <div 
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        gap: 8,
+                        marginBottom: 8,
+                        cursor: 'help'
+                      }}
+                      title="During pegging, players alternate playing cards. The Count is the running total of card values. You can't exceed 31. Hit exactly 15 or 31 to score 2 points!"
+                    >
+                      <span style={{ color: '#d4a574', fontSize: 18 }}>Count:</span>
+                      <span style={{
+                        fontSize: 28,
+                        fontWeight: 'bold',
+                        color: '#ffc82e',
+                        fontFamily: 'Cinzel, serif'
+                      }}>
+                        {gameState.pegging.runningTotal}
+                      </span>
+                    </div>
+                    
+                    {/* Played cards this round */}
+                    <div style={{ display: 'flex', gap: 4, justifyContent: 'center', flexWrap: 'wrap', minHeight: 40 }}>
+                      {gameState.pegging.playedCards.map((card, i) => (
+                        <div key={i} style={{
+                          padding: '4px 8px',
+                          background: 'rgba(255,255,255,0.9)',
+                          borderRadius: 4,
+                          color: getSuitColor(card.suit),
+                          fontWeight: 'bold',
+                          fontSize: 14
+                        }}>
+                          {card.display}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Crib indicator */}
+                {gameState.crib.length > 0 && gameState.phase !== GAME_PHASES.COUNTING_CRIB && (
+                  <div style={{ textAlign: 'center', marginTop: 12 }}>
+                    <div 
+                      style={{ color: '#a08060', fontSize: 11, cursor: 'help' }}
+                      title="The Crib is an extra hand that belongs to the dealer. Both players discard 2 cards to it. The dealer scores it after counting both hands."
+                    >
+                      Crib ({gameState.dealer === 1 ? settings.playerName : settings.aiName}'s): {gameState.crib.length} cards
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Player's hand */}
+              <div style={{ textAlign: 'center' }}>
+                <div className="mobile-text-sm" style={{ color: '#8fbc8f', fontSize: 12, marginBottom: 4 }}>Your Hand</div>
+                <div className="mobile-gap-sm" style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+                  {(gameState.phase === GAME_PHASES.PEGGING ? gameState.player1PeggingHand : gameState.player1.hand).map((card, i) => {
+                    // Check if card is playable during pegging
+                    const isUnplayable = gameState.phase === GAME_PHASES.PEGGING && 
+                      gameState.currentPlayer === 1 &&
+                      (gameState.pegging.runningTotal + card.value > 31);
+                    
+                    return (
+                      <PlayingCard
+                        key={card.id}
+                        card={card}
+                        selected={selectedCards.includes(card.id)}
+                        selectable={gameState.phase === GAME_PHASES.DISCARDING || 
+                                  (gameState.phase === GAME_PHASES.PEGGING && gameState.currentPlayer === 1 && !isUnplayable)}
+                        dimmed={isUnplayable}
+                        onClick={() => {
+                          if (gameState.phase === GAME_PHASES.DISCARDING) {
+                            handleCardClick(card.id);
+                          } else if (gameState.phase === GAME_PHASES.PEGGING && gameState.currentPlayer === 1) {
+                            playPeggingCard(card.id);
+                          }
+                        }}
+                        animationDelay={i * 0.1}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+              
+              {/* Action buttons */}
+              <div className="mobile-gap-sm" style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+                {gameState.phase === GAME_PHASES.DISCARDING && (
+                  <>
+                    <button
+                      className="mobile-btn"
+                      onClick={confirmDiscard}
+                      disabled={selectedCards.length !== 2}
+                      style={{
+                        padding: '12px 24px',
+                        fontSize: 16,
+                        fontFamily: 'Cinzel, serif',
+                        color: '#fff',
+                        background: selectedCards.length === 2 
+                          ? 'linear-gradient(180deg, #0051ba, #003d8f)'
+                          : '#555',
+                        border: '2px solid #ffc82e',
+                        borderRadius: 8,
+                        cursor: selectedCards.length === 2 ? 'pointer' : 'not-allowed',
+                        opacity: selectedCards.length === 2 ? 1 : 0.6
+                      }}
+                    >
+                      Send to Crib ({selectedCards.length}/2)
+                    </button>
+                    <button
+                      className="mobile-btn"
+                      onClick={() => {
+                        const hint = getDiscardHint(gameState.player1.hand, gameState.dealer === 1);
+                        setShowHint(hint);
+                      }}
+                      style={{
+                        padding: '12px 16px',
+                        fontSize: 14,
+                        fontFamily: 'Cinzel, serif',
+                        color: '#ffc82e',
+                        background: 'linear-gradient(180deg, #2d6a2d, #1a4a1a)',
+                        border: '2px solid #8fbc8f',
+                        borderRadius: 8,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      💡 Hint
+                    </button>
+                  </>
+                )}
+                
+                {gameState.phase === GAME_PHASES.PEGGING && gameState.currentPlayer === 1 && (
+                  <>
+                    <button
+                      onClick={sayGo}
+                      style={{
+                        padding: '12px 24px',
+                        fontSize: 16,
+                        fontFamily: 'Cinzel, serif',
+                        color: '#fff',
+                        background: 'linear-gradient(180deg, #8B4513, #654321)',
+                        border: '2px solid #d4a574',
+                        borderRadius: 8,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Say "Go"
+                    </button>
+                    <button
+                      onClick={() => {
+                        const playable = getPlayableCards(gameState.player1PeggingHand, gameState.pegging.runningTotal);
+                        const hint = getPeggingHint(playable, gameState.player1PeggingHand, gameState.pegging);
+                        setShowHint(hint);
+                      }}
+                      style={{
+                        padding: '12px 16px',
+                        fontSize: 14,
+                        fontFamily: 'Cinzel, serif',
+                        color: '#ffc82e',
+                        background: 'linear-gradient(180deg, #2d6a2d, #1a4a1a)',
+                        border: '2px solid #8fbc8f',
+                        borderRadius: 8,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      💡 Hint
+                    </button>
+                  </>
+                )}
+                
+                {(gameState.phase === GAME_PHASES.COUNTING_PONE ||
+                  gameState.phase === GAME_PHASES.COUNTING_DEALER ||
+                  gameState.phase === GAME_PHASES.COUNTING_CRIB) && !manualScorePhase && (
+                  <button
+                    onClick={countHand}
+                    style={{
+                      padding: '12px 24px',
+                      fontSize: 16,
+                      fontFamily: 'Cinzel, serif',
+                      color: '#fff',
+                      background: 'linear-gradient(180deg, #0051ba, #003d8f)',
+                      border: '2px solid #ffc82e',
+                      borderRadius: 8,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {gameState.phase === GAME_PHASES.COUNTING_PONE ? 'Count Pone\'s Hand' :
+                     gameState.phase === GAME_PHASES.COUNTING_DEALER ? 'Count Dealer\'s Hand' :
+                     'Count Crib'}
+                  </button>
+                )}
+                
+                {/* Manual scoring input */}
+                {manualScorePhase && !manualScoreResult && (
+                  <div style={{ 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    alignItems: 'center', 
+                    gap: 10,
+                    background: 'rgba(0,0,0,0.5)',
+                    padding: 16,
+                    borderRadius: 12
+                  }}>
+                    <div style={{ color: '#ffc82e', fontFamily: 'Cinzel, serif' }}>
+                      Enter your score for {manualScorePhase === 'crib' ? 'the crib' : 'this hand'}:
+                    </div>
+                    <input
+                      type="number"
+                      min="0"
+                      max="29"
+                      value={manualScoreInput}
+                      onChange={e => setManualScoreInput(e.target.value)}
+                      onKeyPress={e => e.key === 'Enter' && submitManualScore()}
+                      style={{
+                        width: 80,
+                        padding: '10px',
+                        fontSize: 20,
+                        textAlign: 'center',
+                        borderRadius: 8,
+                        border: '2px solid #d4a574'
+                      }}
+                      autoFocus
+                    />
+                    <button
+                      onClick={submitManualScore}
+                      style={{
+                        padding: '10px 20px',
+                        fontSize: 14,
+                        fontFamily: 'Cinzel, serif',
+                        color: '#fff',
+                        background: 'linear-gradient(180deg, #0051ba, #003d8f)',
+                        border: '2px solid #ffc82e',
+                        borderRadius: 8,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Submit Score
+                    </button>
+                  </div>
+                )}
+                
+                {/* Manual score feedback */}
+                {manualScoreResult && (
+                  <div style={{ 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    alignItems: 'center', 
+                    gap: 10,
+                    background: manualScoreResult.correct ? 'rgba(45, 106, 45, 0.8)' : 'rgba(139, 0, 0, 0.8)',
+                    padding: 16,
+                    borderRadius: 12
+                  }}>
+                    <div style={{ 
+                      color: '#fff', 
+                      fontFamily: 'Cinzel, serif',
+                      fontSize: 18,
+                      fontWeight: 'bold'
+                    }}>
+                      {manualScoreResult.correct ? '✓ Correct!' : '✗ Incorrect'}
+                    </div>
+                    <div style={{ color: '#fff', fontSize: 14 }}>
+                      {manualScoreResult.correct 
+                        ? `You scored ${manualScoreResult.actual} points!`
+                        : `You guessed ${manualScoreResult.guess}, actual score is ${manualScoreResult.actual}`
+                      }
+                    </div>
+                    <button
+                      onClick={continueAfterManualScore}
+                      style={{
+                        padding: '10px 20px',
+                        fontSize: 14,
+                        fontFamily: 'Cinzel, serif',
+                        color: '#fff',
+                        background: 'linear-gradient(180deg, #0051ba, #003d8f)',
+                        border: '2px solid #ffc82e',
+                        borderRadius: 8,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Continue
+                    </button>
+                  </div>
+                )}
+                
+                {gameState.phase === GAME_PHASES.GAME_OVER && (
+                  <button
+                    onClick={() => { setGameStarted(false); setGameState(null); }}
+                    style={{
+                      padding: '12px 24px',
+                      fontSize: 16,
+                      fontFamily: 'Cinzel, serif',
+                      color: '#fff',
+                      background: 'linear-gradient(180deg, #0051ba, #003d8f)',
+                      border: '2px solid #ffc82e',
+                      borderRadius: 8,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Play Again
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+          
+          {/* Game Over overlay */}
+          {gameState.phase === GAME_PHASES.GAME_OVER && (
+            <div style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.8)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000
+            }}>
+              <div style={{
+                background: 'linear-gradient(145deg, #8B4513, #654321)',
+                padding: 40,
+                borderRadius: 20,
+                textAlign: 'center',
+                border: '4px solid #ffc82e',
+                boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
+              }}>
+                <h2 style={{
+                  fontFamily: 'Cinzel, serif',
+                  fontSize: 36,
+                  color: '#ffc82e',
+                  marginBottom: 16
+                }}>
+                  {gameState.winner === 1 ? '🎉 You Win! 🎉' : 'Computer Wins!'}
+                </h2>
+                <p style={{ color: '#d4a574', fontSize: 20, marginBottom: 8 }}>
+                  Final Score
+                </p>
+                <p style={{ color: '#fff', fontSize: 24, marginBottom: 24 }}>
+                  {settings.playerName}: {gameState.player1.score} — {settings.aiName}: {gameState.player2.score}
+                </p>
+                <button
+                  onClick={() => { setGameStarted(false); setGameState(null); }}
+                  style={{
+                    padding: '14px 32px',
+                    fontSize: 18,
+                    fontFamily: 'Cinzel, serif',
+                    color: '#fff',
+                    background: 'linear-gradient(180deg, #0051ba, #003d8f)',
+                    border: '3px solid #ffc82e',
+                    borderRadius: 10,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Play Again
+                </button>
+              </div>
+            </div>
+          )}
+          
+          {/* Score Breakdown Modal */}
+          {showScoreBreakdown && (
+            <ScoreBreakdown
+              scoreResult={showScoreBreakdown}
+              title={breakdownTitle}
+              onClose={() => setShowScoreBreakdown(null)}
+            />
+          )}
+          
+          {/* Hint Modal */}
+          {showHint && (
+            <div style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.7)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000
+            }} onClick={() => setShowHint(null)}>
+              <div style={{
+                background: 'linear-gradient(145deg, #2d6a2d, #1a4a1a)',
+                padding: 30,
+                borderRadius: 16,
+                border: '3px solid #8fbc8f',
+                maxWidth: 400,
+                textAlign: 'center',
+                boxShadow: '0 10px 40px rgba(0,0,0,0.5)'
+              }} onClick={e => e.stopPropagation()}>
+                <div style={{ 
+                  fontSize: 24, 
+                  marginBottom: 16 
+                }}>💡</div>
+                <h3 style={{
+                  fontFamily: 'Cinzel, serif',
+                  color: '#ffc82e',
+                  fontSize: 20,
+                  marginBottom: 16
+                }}>
+                  Strategy Hint
+                </h3>
+                <p style={{
+                  color: '#fff',
+                  fontSize: 16,
+                  lineHeight: 1.5,
+                  marginBottom: 20
+                }}>
+                  {showHint.reason}
+                </p>
+                {showHint.discards && (
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ color: '#8fbc8f', fontSize: 12, marginBottom: 8 }}>
+                      Recommended discards:
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+                      {showHint.discards.map(card => (
+                        <div key={card.id} style={{
+                          background: '#fff',
+                          padding: '8px 12px',
+                          borderRadius: 6,
+                          color: card.suit === '♥' || card.suit === '♦' ? '#c41e3a' : '#000',
+                          fontWeight: 'bold',
+                          fontSize: 16
+                        }}>
+                          {card.display}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <button
+                  onClick={() => setShowHint(null)}
+                  style={{
+                    padding: '10px 24px',
+                    fontSize: 14,
+                    fontFamily: 'Cinzel, serif',
+                    color: '#fff',
+                    background: 'linear-gradient(180deg, #0051ba, #003d8f)',
+                    border: '2px solid #ffc82e',
+                    borderRadius: 8,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Got it!
+                </button>
+              </div>
+            </div>
+          )}
+          
+          {/* How to Play Modal */}
+          {showHowToPlay && (
+            <HowToPlayModal onClose={() => setShowHowToPlay(false)} />
+          )}
+          
+          {/* Scoring Reference Modal */}
+          {showScoringRef && (
+            <ScoringRefModal onClose={() => setShowScoringRef(false)} />
+          )}
+        </div>
+      );
+    };
+
+    // ============================================================================
+    // RENDER
+    // ============================================================================
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<CribbageGame />);
+  </script>
+  
+  <!-- Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then((registration) => {
+            console.log('ServiceWorker registration successful:', registration.scope);
+          })
+          .catch((error) => {
+            console.log('ServiceWorker registration failed:', error);
+          });
+      });
+    }
+  </script>
+</body>
+</html>

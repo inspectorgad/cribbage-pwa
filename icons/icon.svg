@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background -->
+  <rect width="512" height="512" rx="64" fill="#1a472a"/>
+  
+  <!-- Cribbage board stylized -->
+  <rect x="156" y="80" width="200" height="352" rx="20" fill="#8B4513"/>
+  <rect x="166" y="90" width="180" height="332" rx="15" fill="#D2691E"/>
+  
+  <!-- Peg holes - left column -->
+  <g fill="#2d1810">
+    <circle cx="200" cy="130" r="8"/>
+    <circle cx="200" cy="160" r="8"/>
+    <circle cx="200" cy="190" r="8"/>
+    <circle cx="200" cy="220" r="8"/>
+    <circle cx="200" cy="250" r="8"/>
+    <circle cx="200" cy="290" r="8"/>
+    <circle cx="200" cy="320" r="8"/>
+    <circle cx="200" cy="350" r="8"/>
+    <circle cx="200" cy="380" r="8"/>
+  </g>
+  
+  <!-- Peg holes - right column -->
+  <g fill="#2d1810">
+    <circle cx="312" cy="130" r="8"/>
+    <circle cx="312" cy="160" r="8"/>
+    <circle cx="312" cy="190" r="8"/>
+    <circle cx="312" cy="220" r="8"/>
+    <circle cx="312" cy="250" r="8"/>
+    <circle cx="312" cy="290" r="8"/>
+    <circle cx="312" cy="320" r="8"/>
+    <circle cx="312" cy="350" r="8"/>
+    <circle cx="312" cy="380" r="8"/>
+  </g>
+  
+  <!-- Red peg -->
+  <circle cx="200" cy="220" r="12" fill="url(#redPeg)"/>
+  
+  <!-- Blue peg -->
+  <circle cx="312" cy="190" r="12" fill="url(#bluePeg)"/>
+  
+  <!-- Playing card decorations -->
+  <g transform="translate(60, 300) rotate(-15)">
+    <rect width="70" height="100" rx="8" fill="#fff" stroke="#ccc" stroke-width="2"/>
+    <text x="10" y="25" font-family="Georgia" font-size="20" font-weight="bold" fill="#e8000d">A</text>
+    <text x="35" y="60" font-family="Georgia" font-size="30" fill="#e8000d">♥</text>
+  </g>
+  
+  <g transform="translate(382, 300) rotate(15)">
+    <rect width="70" height="100" rx="8" fill="#fff" stroke="#ccc" stroke-width="2"/>
+    <text x="10" y="25" font-family="Georgia" font-size="20" font-weight="bold" fill="#000">K</text>
+    <text x="35" y="60" font-family="Georgia" font-size="30" fill="#000">♠</text>
+  </g>
+  
+  <!-- Gradients -->
+  <defs>
+    <radialGradient id="redPeg" cx="40%" cy="40%">
+      <stop offset="0%" stop-color="#ff8080"/>
+      <stop offset="100%" stop-color="#8B0000"/>
+    </radialGradient>
+    <radialGradient id="bluePeg" cx="40%" cy="40%">
+      <stop offset="0%" stop-color="#80c0ff"/>
+      <stop offset="100%" stop-color="#0d47a1"/>
+    </radialGradient>
+  </defs>
+</svg>
