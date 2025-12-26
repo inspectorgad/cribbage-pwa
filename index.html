@@ -169,7 +169,7 @@
       
       /* Show on mobile only */
       .mobile-show {
-        display: block !important;
+        display: flex !important;
       }
       
       /* Larger text on mobile */
@@ -2817,7 +2817,8 @@
                 </div>
               </div>
               
-              {/* Center play area */}
+              {/* Center play area - only show when there's a starter card */}
+              {gameState.starter && (
               <div className="mobile-compact" style={{
                 background: 'rgba(0,0,0,0.3)',
                 padding: 16,
@@ -2915,6 +2916,7 @@
                   </div>
                 )}
               </div>
+              )}
               
               {/* Player's hand */}
               <div style={{ textAlign: 'center' }}>
