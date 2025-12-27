@@ -1,5 +1,5 @@
 // Service Worker for Cribbage PWA
-const CACHE_NAME = 'cribbage-v4';
+const CACHE_NAME = 'cribbage-v5';
 const urlsToCache = [
   './',
   './index.html',
@@ -24,8 +24,14 @@ self.addEventListener('install', (event) => {
         console.error('Failed to cache:', error);
       })
   );
-  // Activate immediately
-  self.skipWaiting();
+  // Don't skip waiting automatically - let the app control this
+});
+
+// Listen for skip waiting message from the app
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 // Activate event - clean up old caches

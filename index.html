@@ -3381,17 +3381,112 @@
     root.render(<CribbageGame />);
   </script>
   
-  <!-- Service Worker Registration -->
+  <!-- Service Worker Registration with Update Detection -->
   <script>
     if ('serviceWorker' in navigator) {
+      let newWorker;
+      let updateNotification;
+      
+      // Create update notification element
+      function createUpdateNotification() {
+        const notification = document.createElement('div');
+        notification.id = 'update-notification';
+        notification.style.cssText = `
+          position: fixed;
+          bottom: 20px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: linear-gradient(145deg, #0051ba, #003d8f);
+          color: white;
+          padding: 16px 24px;
+          border-radius: 12px;
+          box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+          z-index: 10000;
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          font-family: 'Cinzel', serif;
+          font-size: 14px;
+          border: 2px solid #ffc82e;
+          max-width: 90%;
+        `;
+        notification.innerHTML = `
+          <span>🔄 Update Available!</span>
+          <button id="update-btn" style="
+            background: #ffc82e;
+            color: #2d1810;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-family: 'Cinzel', serif;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 13px;
+          ">Refresh</button>
+          <button id="dismiss-btn" style="
+            background: transparent;
+            color: #ccc;
+            border: none;
+            padding: 4px 8px;
+            cursor: pointer;
+            font-size: 18px;
+          ">✕</button>
+        `;
+        document.body.appendChild(notification);
+        
+        document.getElementById('update-btn').addEventListener('click', () => {
+          if (newWorker) {
+            newWorker.postMessage({ type: 'SKIP_WAITING' });
+          }
+        });
+        
+        document.getElementById('dismiss-btn').addEventListener('click', () => {
+          notification.remove();
+        });
+        
+        return notification;
+      }
+      
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js')
           .then((registration) => {
             console.log('ServiceWorker registration successful:', registration.scope);
+            
+            // Check for updates immediately
+            registration.update();
+            
+            // Check for updates periodically (every 60 seconds)
+            setInterval(() => {
+              registration.update();
+            }, 60000);
+            
+            // Detect when a new service worker is available
+            registration.addEventListener('updatefound', () => {
+              newWorker = registration.installing;
+              
+              newWorker.addEventListener('statechange', () => {
+                // When the new worker is installed and waiting
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  // Show update notification
+                  if (!updateNotification) {
+                    updateNotification = createUpdateNotification();
+                  }
+                }
+              });
+            });
           })
           .catch((error) => {
             console.log('ServiceWorker registration failed:', error);
           });
+        
+        // Reload page when new service worker takes over
+        let refreshing = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (!refreshing) {
+            refreshing = true;
+            window.location.reload();
+          }
+        });
       });
     }
   </script>
