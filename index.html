@@ -755,6 +755,38 @@
       return combinations;
     }
     
+    // Calculate expected value for a 4-card hand (for post-hand review)
+    function calculateExpectedValue(keptHand, isDealer) {
+      return evaluateHandPotential(keptHand, false);
+    }
+    
+    // Find the optimal discard from a 6-card hand (for post-hand review)
+    function findOptimalDiscard(hand, isDealer) {
+      const combinations = getDiscardCombinations(hand);
+      
+      // Evaluate each combination
+      const evaluated = combinations.map(combo => {
+        const handScore = evaluateHandPotential(combo.kept, false);
+        const cribScore = evaluateHandPotential(combo.discards, true);
+        
+        // If dealer, crib helps us. If not dealer, crib hurts us.
+        const cribFactor = isDealer ? 0.5 : -0.5;
+        const totalValue = handScore + (cribScore * cribFactor);
+        
+        return { 
+          discards: combo.discards, 
+          kept: combo.kept, 
+          expectedValue: totalValue,
+          handScore,
+          cribScore
+        };
+      });
+      
+      // Sort by total value and return the best
+      evaluated.sort((a, b) => b.expectedValue - a.expectedValue);
+      return evaluated[0];
+    }
+    
     // AI Discard Strategy
     function aiSelectDiscards(hand, isDealer, difficulty) {
       const combinations = getDiscardCombinations(hand);
@@ -1068,12 +1100,18 @@
     };
 
     // Cribbage Board - 2-Player with 5-hole groups, divider lines, and 2 pegs per player
-    const CribbageBoard = ({ player1Score, player2Score, player1PrevScore, player2PrevScore, player1Name, player2Name }) => {
+    const CribbageBoard = ({ player1Score, player2Score, player1PrevScore, player2PrevScore, player1Name, player2Name, boardStyle = {} }) => {
       const boardWidth = 320;
       const boardHeight = 770;
       const holeRadius = 4;
       const holeSpacing = 13; // Vertical spacing between holes
       const groupGap = 8; // Extra gap after each 5-hole group
+      
+      // Board colors from style prop
+      const boardColor = boardStyle.board || '#5D3A1A';
+      const surfaceColor = boardStyle.surface || '#D2691E';
+      const borderColor = boardStyle.border || '#2d1810';
+      const holeColor = boardStyle.board ? (boardStyle.name === 'Ebony' ? '#0a0a0a' : '#1a1208') : '#1a1208';
       
       // Column X positions (2 holes per row)
       const leftCol = { x1: 54, x2: 70 };
@@ -1156,8 +1194,8 @@
             const y = getYForHole(holeIndex, goingUp);
             
             elements.push(
-              <circle key={`h1-${startHole}-${holeIndex}`} cx={col.x1} cy={y} r={holeRadius} fill="#1a1208"/>,
-              <circle key={`h2-${startHole}-${holeIndex}`} cx={col.x2} cy={y} r={holeRadius} fill="#1a1208"/>
+              <circle key={`h1-${startHole}-${holeIndex}`} cx={col.x1} cy={y} r={holeRadius} fill={holeColor}/>,
+              <circle key={`h2-${startHole}-${holeIndex}`} cx={col.x2} cy={y} r={holeRadius} fill={holeColor}/>
             );
           }
           
@@ -1211,10 +1249,10 @@
           <svg width={boardWidth} height={boardHeight}>
             <defs>
               <linearGradient id="copper" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#d4a574"/>
-                <stop offset="40%" stopColor="#c49464"/>
-                <stop offset="60%" stopColor="#ddb68a"/>
-                <stop offset="100%" stopColor="#c49464"/>
+                <stop offset="0%" stopColor={surfaceColor}/>
+                <stop offset="40%" stopColor={surfaceColor}/>
+                <stop offset="60%" stopColor={surfaceColor}/>
+                <stop offset="100%" stopColor={surfaceColor}/>
               </linearGradient>
               <radialGradient id="redPeg" cx="30%" cy="30%">
                 <stop offset="0%" stopColor="#ff8080"/>
@@ -1229,7 +1267,7 @@
             </defs>
             
             {/* Board background */}
-            <rect x="5" y="5" width="310" height="760" rx="15" fill="#5D3A1A" stroke="#2d1810" strokeWidth="4"/>
+            <rect x="5" y="5" width="310" height="760" rx="15" fill={boardColor} stroke={borderColor} strokeWidth="4"/>
             
             {/* Track inlays */}
             <rect x="40" y="60" width="45" height="590" rx="6" fill="url(#copper)"/>
@@ -1261,14 +1299,14 @@
             {renderColumn(centerCol, 81, true, 'left')}
             
             {/* Finish holes */}
-            <circle cx={centerCol.x1} cy={finishY} r={holeRadius} fill="#1a1208"/>
-            <circle cx={centerCol.x2} cy={finishY} r={holeRadius} fill="#1a1208"/>
+            <circle cx={centerCol.x1} cy={finishY} r={holeRadius} fill={holeColor}/>
+            <circle cx={centerCol.x2} cy={finishY} r={holeRadius} fill={holeColor}/>
             
             {/* Start holes - 2 per player for back pegs */}
-            <circle cx={centerCol.x1} cy={startY} r={holeRadius} fill="#1a1208"/>
-            <circle cx={centerCol.x2} cy={startY} r={holeRadius} fill="#1a1208"/>
-            <circle cx={centerCol.x1} cy={startY + 15} r={holeRadius} fill="#1a1208"/>
-            <circle cx={centerCol.x2} cy={startY + 15} r={holeRadius} fill="#1a1208"/>
+            <circle cx={centerCol.x1} cy={startY} r={holeRadius} fill={holeColor}/>
+            <circle cx={centerCol.x2} cy={startY} r={holeRadius} fill={holeColor}/>
+            <circle cx={centerCol.x1} cy={startY + 15} r={holeRadius} fill={holeColor}/>
+            <circle cx={centerCol.x2} cy={startY + 15} r={holeRadius} fill={holeColor}/>
             
             {/* Back pegs (previous scores) - rendered first so front pegs appear on top */}
             {renderPeg(p1PrevPos, 'redPeg', '#600', true)}
@@ -1754,15 +1792,123 @@
         }
       };
       
+      // Board style options
+      const BOARD_STYLES = {
+        classic: { name: 'Classic Wood', board: '#8B4513', surface: '#D2691E', border: '#654321' },
+        walnut: { name: 'Dark Walnut', board: '#3d2914', surface: '#5c4033', border: '#2a1d0e' },
+        cherry: { name: 'Cherry', board: '#7c2d2d', surface: '#a04040', border: '#5a1f1f' },
+        maple: { name: 'Light Maple', board: '#c9a66b', surface: '#dfc08a', border: '#a8854a' },
+        ebony: { name: 'Ebony', board: '#1a1a1a', surface: '#2d2d2d', border: '#0d0d0d' },
+        felt: { name: 'Green Felt', board: '#1a472a', surface: '#2d5a3d', border: '#0d2818' }
+      };
+      
       // Settings
-      const [settings, setSettings] = useState({
-        playerName: 'Mike',
-        aiName: 'Clever Clara',
-        aiDifficulty: 'medium',
-        manualScoring: false,
-        soundEnabled: true,
-        tutorLevel: 'medium'
+      const [settings, setSettings] = useState(() => {
+        // Load settings from localStorage
+        const saved = localStorage.getItem('cribbage-settings');
+        if (saved) {
+          try {
+            return { ...{
+              playerName: 'Mike',
+              aiName: 'Clever Clara',
+              aiDifficulty: 'medium',
+              manualScoring: false,
+              soundEnabled: true,
+              tutorLevel: 'medium',
+              boardStyle: 'classic'
+            }, ...JSON.parse(saved) };
+          } catch (e) {}
+        }
+        return {
+          playerName: 'Mike',
+          aiName: 'Clever Clara',
+          aiDifficulty: 'medium',
+          manualScoring: false,
+          soundEnabled: true,
+          tutorLevel: 'medium',
+          boardStyle: 'classic'
+        };
       });
+      
+      // Save settings when they change
+      useEffect(() => {
+        localStorage.setItem('cribbage-settings', JSON.stringify(settings));
+      }, [settings]);
+      
+      // Undo state - stores the previous state before last action
+      const [undoState, setUndoState] = useState(null);
+      const [canUndo, setCanUndo] = useState(false);
+      
+      // Post-hand review state
+      const [discardReview, setDiscardReview] = useState(null);
+      const [showDiscardReview, setShowDiscardReview] = useState(false);
+      
+      // Save game state for resume
+      const [hasSavedGame, setHasSavedGame] = useState(() => {
+        return localStorage.getItem('cribbage-save') !== null;
+      });
+      
+      // Save game function
+      const saveGame = useCallback((state, msg, selCards) => {
+        const saveData = {
+          gameState: state,
+          message: msg,
+          selectedCards: selCards,
+          settings: settings,
+          timestamp: Date.now()
+        };
+        localStorage.setItem('cribbage-save', JSON.stringify(saveData));
+        setHasSavedGame(true);
+      }, [settings]);
+      
+      // Load game function
+      const loadGame = useCallback(() => {
+        const saved = localStorage.getItem('cribbage-save');
+        if (saved) {
+          try {
+            const data = JSON.parse(saved);
+            setGameState(data.gameState);
+            setMessage(data.message);
+            setSelectedCards(data.selectedCards || []);
+            if (data.settings) {
+              setSettings(data.settings);
+            }
+            setGameStarted(true);
+            return true;
+          } catch (e) {
+            console.error('Failed to load game:', e);
+          }
+        }
+        return false;
+      }, []);
+      
+      // Clear saved game
+      const clearSavedGame = () => {
+        localStorage.removeItem('cribbage-save');
+        setHasSavedGame(false);
+      };
+      
+      // Store state for undo before making changes
+      const saveForUndo = useCallback(() => {
+        setUndoState({
+          gameState: JSON.parse(JSON.stringify(gameState)),
+          message,
+          selectedCards: [...selectedCards]
+        });
+        setCanUndo(true);
+      }, [gameState, message, selectedCards]);
+      
+      // Undo last action
+      const performUndo = useCallback(() => {
+        if (undoState) {
+          setGameState(undoState.gameState);
+          setMessage(undoState.message);
+          setSelectedCards(undoState.selectedCards);
+          setUndoState(null);
+          setCanUndo(false);
+          SoundManager.click();
+        }
+      }, [undoState]);
       
       // Sync sound setting with SoundManager
       useEffect(() => {
@@ -1770,6 +1916,13 @@
       }, [settings.soundEnabled]);
       
       const [gameStarted, setGameStarted] = useState(false);
+      
+      // Auto-save game state when it changes
+      useEffect(() => {
+        if (gameStarted && gameState) {
+          saveGame(gameState, message, selectedCards);
+        }
+      }, [gameState, message, selectedCards, gameStarted, saveGame]);
       
       // Initialize game
       const startNewGame = () => {
@@ -1840,8 +1993,29 @@
         
         SoundManager.cardDeal();
         
-        const newCrib = [...gameState.crib, ...gameState.player1.hand.filter(c => selectedCards.includes(c.id))];
-        const newHand = gameState.player1.hand.filter(c => !selectedCards.includes(c.id));
+        // Track player's discard choice for post-hand review
+        const playerHand = [...gameState.player1.hand];
+        const playerDiscards = playerHand.filter(c => selectedCards.includes(c.id));
+        const playerKept = playerHand.filter(c => !selectedCards.includes(c.id));
+        const isPlayerDealer = gameState.dealer === 1;
+        
+        // Calculate optimal discard
+        const optimalDiscard = findOptimalDiscard(playerHand, isPlayerDealer);
+        
+        // Store for review later
+        setDiscardReview({
+          originalHand: playerHand,
+          playerDiscards,
+          playerKept,
+          optimalDiscards: optimalDiscard.discards,
+          optimalKept: optimalDiscard.kept,
+          playerExpectedValue: calculateExpectedValue(playerKept, isPlayerDealer),
+          optimalExpectedValue: optimalDiscard.expectedValue,
+          isDealer: isPlayerDealer
+        });
+        
+        const newCrib = [...gameState.crib, ...playerDiscards];
+        const newHand = playerKept;
         
         // AI discards using smart strategy based on difficulty
         const aiHand = [...gameState.player2.hand];
@@ -1905,6 +2079,9 @@
           return;
         }
         
+        // Save state for undo before making changes
+        saveForUndo();
+        
         SoundManager.cardFlip();
         
         // Score the play
@@ -1954,6 +2131,12 @@
           pegging: finalPegging,
           currentPlayer: 2
         }));
+        
+        // Clear undo state after AI plays (to prevent undoing after AI response)
+        setTimeout(() => {
+          setUndoState(null);
+          setCanUndo(false);
+        }, 5000);
       };
       
       // Auto-pass to AI when it's human's turn but human has no cards
@@ -2290,9 +2473,19 @@
             winner: dealer
           }));
         } else {
-          startNewHandAfterCrib(result.total, dealer);
+          // Show discard review before starting new hand
+          if (discardReview && !showDiscardReview) {
+            setShowDiscardReview(true);
+            // Store the crib info for when user clicks "Next Hand"
+            setPendingNewHand({ cribPoints: result.total, dealer });
+          } else {
+            startNewHandAfterCrib(result.total, dealer);
+          }
         }
       };
+      
+      // Pending new hand data (for after discard review is dismissed)
+      const [pendingNewHand, setPendingNewHand] = useState(null);
       
       // Start new hand after crib counting
       const startNewHandAfterCrib = (cribPoints, dealer = 1) => {
@@ -2300,6 +2493,11 @@
         const freshDeck = shuffleDeck(createDeck());
         const { dealt: hand1, remaining: deck1 } = dealCards(freshDeck, 6);
         const { dealt: hand2, remaining: deck2 } = dealCards(deck1, 6);
+        
+        // Clear discard review state for next hand
+        setDiscardReview(null);
+        setShowDiscardReview(false);
+        setPendingNewHand(null);
         
         setGameState(prev => ({
           ...prev,
@@ -2474,8 +2672,68 @@
                 </label>
               </div>
               
+              {/* Board Style Selector */}
+              <div style={{ marginBottom: 30 }}>
+                <div style={{ color: '#d4a574', marginBottom: 10, textAlign: 'center' }}>Board Style</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
+                  {Object.entries(BOARD_STYLES).map(([key, style]) => (
+                    <button
+                      key={key}
+                      onClick={() => setSettings(s => ({ ...s, boardStyle: key }))}
+                      style={{
+                        padding: '8px 12px',
+                        fontSize: 11,
+                        fontFamily: 'Cinzel, serif',
+                        color: settings.boardStyle === key ? '#fff' : '#d4a574',
+                        background: settings.boardStyle === key 
+                          ? `linear-gradient(180deg, ${style.surface}, ${style.board})`
+                          : 'rgba(0,0,0,0.3)',
+                        border: settings.boardStyle === key 
+                          ? '2px solid #ffc82e' 
+                          : '1px solid #654321',
+                        borderRadius: 6,
+                        cursor: 'pointer',
+                        minWidth: 80
+                      }}
+                    >
+                      {style.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Continue Game Button (if save exists) */}
+              {hasSavedGame && (
+                <button
+                  onClick={() => {
+                    if (loadGame()) {
+                      SoundManager.init();
+                    }
+                  }}
+                  style={{
+                    width: '100%',
+                    marginBottom: 12,
+                    padding: '14px 28px',
+                    fontSize: 18,
+                    fontFamily: 'Cinzel, serif',
+                    fontWeight: 600,
+                    color: '#fff',
+                    background: 'linear-gradient(180deg, #2d6a2d, #1a4a1a)',
+                    border: '3px solid #8fbc8f',
+                    borderRadius: 12,
+                    cursor: 'pointer',
+                    boxShadow: '0 6px 20px rgba(0,0,0,0.4)'
+                  }}
+                >
+                  ▶ Continue Game
+                </button>
+              )}
+              
               <button
-                onClick={startNewGame}
+                onClick={() => {
+                  clearSavedGame();
+                  startNewGame();
+                }}
                 style={{
                   width: '100%',
                   padding: '14px 28px',
@@ -2725,6 +2983,7 @@
                     player2PrevScore={gameState?.player2?.prevScore || 0}
                     player1Name={settings.playerName}
                     player2Name={settings.aiName}
+                    boardStyle={BOARD_STYLES[settings.boardStyle] || BOARD_STYLES.classic}
                   />
                 </div>
               )}
@@ -3062,6 +3321,23 @@
                     >
                       Say "Go"
                     </button>
+                    {canUndo && (
+                      <button
+                        onClick={performUndo}
+                        style={{
+                          padding: '12px 16px',
+                          fontSize: 14,
+                          fontFamily: 'Cinzel, serif',
+                          color: '#fff',
+                          background: 'linear-gradient(180deg, #6b4423, #4a2f18)',
+                          border: '2px solid #a08060',
+                          borderRadius: 8,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        ↩ Undo
+                      </button>
+                    )}
                     <button
                       onClick={() => {
                         const playable = getPlayableCards(gameState.player1PeggingHand, gameState.pegging.runningTotal);
@@ -3368,6 +3644,158 @@
           {/* Scoring Reference Modal */}
           {showScoringRef && (
             <ScoringRefModal onClose={() => setShowScoringRef(false)} />
+          )}
+          
+          {/* Post-Hand Review Modal */}
+          {showDiscardReview && discardReview && (
+            <div style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              background: 'rgba(0,0,0,0.85)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 2000,
+              padding: 20
+            }}>
+              <div style={{
+                background: 'linear-gradient(180deg, #1a472a 0%, #0d2818 100%)',
+                padding: 24,
+                borderRadius: 16,
+                maxWidth: 450,
+                width: '100%',
+                maxHeight: '90vh',
+                overflow: 'auto',
+                border: '3px solid #d4a574',
+                boxShadow: '0 10px 40px rgba(0,0,0,0.5)'
+              }}>
+                <h2 style={{ 
+                  color: '#ffc82e', 
+                  textAlign: 'center', 
+                  marginBottom: 16, 
+                  fontFamily: 'Cinzel, serif',
+                  fontSize: 20
+                }}>
+                  📊 Hand Review
+                </h2>
+                
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ color: '#8fbc8f', fontSize: 13, marginBottom: 6 }}>Your original hand:</div>
+                  <div style={{ display: 'flex', gap: 4, justifyContent: 'center', flexWrap: 'wrap' }}>
+                    {discardReview.originalHand.map((card, i) => (
+                      <PlayingCard key={card.id} card={card} width={45} height={65} />
+                    ))}
+                  </div>
+                </div>
+                
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: '1fr 1fr', 
+                  gap: 16, 
+                  marginBottom: 16 
+                }}>
+                  <div style={{
+                    background: 'rgba(0,0,0,0.3)',
+                    padding: 12,
+                    borderRadius: 8,
+                    border: '1px solid #654321'
+                  }}>
+                    <div style={{ color: '#d4a574', fontSize: 12, marginBottom: 8, textAlign: 'center' }}>
+                      You discarded:
+                    </div>
+                    <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
+                      {discardReview.playerDiscards.map((card, i) => (
+                        <PlayingCard key={card.id} card={card} width={40} height={58} />
+                      ))}
+                    </div>
+                    <div style={{ 
+                      color: '#a08060', 
+                      fontSize: 11, 
+                      marginTop: 8, 
+                      textAlign: 'center' 
+                    }}>
+                      Expected: ~{discardReview.playerExpectedValue.toFixed(1)} pts
+                    </div>
+                  </div>
+                  
+                  <div style={{
+                    background: 'rgba(0,0,0,0.3)',
+                    padding: 12,
+                    borderRadius: 8,
+                    border: discardReview.playerExpectedValue >= discardReview.optimalExpectedValue - 0.5
+                      ? '2px solid #8fbc8f' 
+                      : '1px solid #654321'
+                  }}>
+                    <div style={{ color: '#8fbc8f', fontSize: 12, marginBottom: 8, textAlign: 'center' }}>
+                      Optimal discard:
+                    </div>
+                    <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
+                      {discardReview.optimalDiscards.map((card, i) => (
+                        <PlayingCard key={card.id} card={card} width={40} height={58} />
+                      ))}
+                    </div>
+                    <div style={{ 
+                      color: '#8fbc8f', 
+                      fontSize: 11, 
+                      marginTop: 8, 
+                      textAlign: 'center' 
+                    }}>
+                      Expected: ~{discardReview.optimalExpectedValue.toFixed(1)} pts
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Feedback message */}
+                <div style={{
+                  background: discardReview.playerExpectedValue >= discardReview.optimalExpectedValue - 0.5
+                    ? 'rgba(46, 125, 50, 0.3)'
+                    : 'rgba(198, 40, 40, 0.2)',
+                  padding: 12,
+                  borderRadius: 8,
+                  marginBottom: 16,
+                  textAlign: 'center'
+                }}>
+                  {discardReview.playerExpectedValue >= discardReview.optimalExpectedValue - 0.5 ? (
+                    <span style={{ color: '#8fbc8f' }}>
+                      ✓ Great choice! Your discard was optimal or near-optimal.
+                    </span>
+                  ) : (
+                    <span style={{ color: '#e57373' }}>
+                      The optimal discard would have been worth ~{(discardReview.optimalExpectedValue - discardReview.playerExpectedValue).toFixed(1)} more points on average.
+                    </span>
+                  )}
+                </div>
+                
+                <div style={{ color: '#a08060', fontSize: 11, marginBottom: 16, textAlign: 'center' }}>
+                  {discardReview.isDealer ? '(As dealer, crib value was factored in)' : '(As pone, crib penalty was factored in)'}
+                </div>
+                
+                <button
+                  onClick={() => {
+                    setShowDiscardReview(false);
+                    if (pendingNewHand) {
+                      startNewHandAfterCrib(pendingNewHand.cribPoints, pendingNewHand.dealer);
+                    }
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '14px 24px',
+                    fontSize: 16,
+                    fontFamily: 'Cinzel, serif',
+                    color: '#fff',
+                    background: 'linear-gradient(180deg, #0051ba, #003d8f)',
+                    border: '2px solid #ffc82e',
+                    borderRadius: 8,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Next Hand →
+                </button>
+              </div>
+            </div>
           )}
         </div>
       );
