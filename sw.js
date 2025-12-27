@@ -1,5 +1,5 @@
 // Service Worker for Cribbage PWA
-const CACHE_NAME = 'cribbage-v3';
+const CACHE_NAME = 'cribbage-v4';
 const urlsToCache = [
   './',
   './index.html',

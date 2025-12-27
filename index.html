@@ -2918,41 +2918,84 @@
               </div>
               )}
               
-              {/* Player's hand */}
+              {/* Cards display - changes based on phase */}
               <div style={{ textAlign: 'center' }}>
-                <div className="mobile-text-md" style={{ color: '#8fbc8f', fontSize: 13, marginBottom: 6, fontWeight: 'bold' }}>
-                  Your Hand
-                  {gameState.phase === GAME_PHASES.DISCARDING && (
-                    <span style={{ fontWeight: 'normal', color: '#d4a574' }}> - Select 2 cards</span>
-                  )}
-                </div>
-                <div className="mobile-gap-sm" style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
-                  {(gameState.phase === GAME_PHASES.PEGGING ? gameState.player1PeggingHand : gameState.player1.hand).map((card, i) => {
-                    // Check if card is playable during pegging
-                    const isUnplayable = gameState.phase === GAME_PHASES.PEGGING && 
-                      gameState.currentPlayer === 1 &&
-                      (gameState.pegging.runningTotal + card.value > 31);
-                    
-                    return (
-                      <PlayingCard
-                        key={card.id}
-                        card={card}
-                        selected={selectedCards.includes(card.id)}
-                        selectable={gameState.phase === GAME_PHASES.DISCARDING || 
-                                  (gameState.phase === GAME_PHASES.PEGGING && gameState.currentPlayer === 1 && !isUnplayable)}
-                        dimmed={isUnplayable}
-                        onClick={() => {
-                          if (gameState.phase === GAME_PHASES.DISCARDING) {
-                            handleCardClick(card.id);
-                          } else if (gameState.phase === GAME_PHASES.PEGGING && gameState.currentPlayer === 1) {
-                            playPeggingCard(card.id);
-                          }
-                        }}
-                        animationDelay={i * 0.1}
-                      />
-                    );
-                  })}
-                </div>
+                {/* During counting crib phase, show crib */}
+                {(gameState.phase === GAME_PHASES.COUNTING_CRIB || manualScorePhase === 'crib') ? (
+                  <>
+                    <div className="mobile-text-md" style={{ color: '#ffc82e', fontSize: 13, marginBottom: 6, fontWeight: 'bold' }}>
+                      The Crib ({gameState.dealer === 1 ? settings.playerName : settings.aiName}'s)
+                    </div>
+                    <div className="mobile-gap-sm" style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+                      {gameState.crib.map((card, i) => (
+                        <PlayingCard
+                          key={card.id}
+                          card={card}
+                          animationDelay={i * 0.1}
+                        />
+                      ))}
+                    </div>
+                  </>
+                ) : (gameState.phase === GAME_PHASES.COUNTING_PONE || gameState.phase === GAME_PHASES.COUNTING_DEALER || manualScorePhase === 'pone' || manualScorePhase === 'dealer') ? (
+                  <>
+                    <div className="mobile-text-md" style={{ color: '#ffc82e', fontSize: 13, marginBottom: 6, fontWeight: 'bold' }}>
+                      {/* Show whose hand is being counted */}
+                      {(gameState.phase === GAME_PHASES.COUNTING_PONE || manualScorePhase === 'pone') 
+                        ? (gameState.dealer === 1 ? `${settings.aiName}'s Hand (Pone)` : `${settings.playerName}'s Hand (Pone)`)
+                        : (gameState.dealer === 1 ? `${settings.playerName}'s Hand (Dealer)` : `${settings.aiName}'s Hand (Dealer)`)}
+                    </div>
+                    <div className="mobile-gap-sm" style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+                      {/* Show pone's hand or dealer's hand */}
+                      {((gameState.phase === GAME_PHASES.COUNTING_PONE || manualScorePhase === 'pone')
+                        ? (gameState.dealer === 1 ? gameState.player2.hand : gameState.player1.hand)
+                        : (gameState.dealer === 1 ? gameState.player1.hand : gameState.player2.hand)
+                      ).map((card, i) => (
+                        <PlayingCard
+                          key={card.id}
+                          card={card}
+                          animationDelay={i * 0.1}
+                        />
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Normal hand display during other phases */}
+                    <div className="mobile-text-md" style={{ color: '#8fbc8f', fontSize: 13, marginBottom: 6, fontWeight: 'bold' }}>
+                      Your Hand
+                      {gameState.phase === GAME_PHASES.DISCARDING && (
+                        <span style={{ fontWeight: 'normal', color: '#d4a574' }}> - Select 2 cards</span>
+                      )}
+                    </div>
+                    <div className="mobile-gap-sm" style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+                      {(gameState.phase === GAME_PHASES.PEGGING ? gameState.player1PeggingHand : gameState.player1.hand).map((card, i) => {
+                        // Check if card is playable during pegging
+                        const isUnplayable = gameState.phase === GAME_PHASES.PEGGING && 
+                          gameState.currentPlayer === 1 &&
+                          (gameState.pegging.runningTotal + card.value > 31);
+                        
+                        return (
+                          <PlayingCard
+                            key={card.id}
+                            card={card}
+                            selected={selectedCards.includes(card.id)}
+                            selectable={gameState.phase === GAME_PHASES.DISCARDING || 
+                                      (gameState.phase === GAME_PHASES.PEGGING && gameState.currentPlayer === 1 && !isUnplayable)}
+                            dimmed={isUnplayable}
+                            onClick={() => {
+                              if (gameState.phase === GAME_PHASES.DISCARDING) {
+                                handleCardClick(card.id);
+                              } else if (gameState.phase === GAME_PHASES.PEGGING && gameState.currentPlayer === 1) {
+                                playPeggingCard(card.id);
+                              }
+                            }}
+                            animationDelay={i * 0.1}
+                          />
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
               </div>
               
               {/* Action buttons */}
